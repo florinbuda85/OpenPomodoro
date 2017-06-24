@@ -1,0 +1,57 @@
+﻿<Controls:MetroWindow  x:Class="OpenPomodoro.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:Controls="http://metro.mahapps.com/winfx/xaml/controls"
+        xmlns:local="clr-namespace:OpenPomodoro"
+        GlowBrush="{DynamicResource AccentColorBrush}" 
+        ShowTitleBar="false"
+         ShowMaxRestoreButton="False"
+                       ShowMinButton="False"
+                       ShowCloseButton="False"
+                       
+        mc:Ignorable="d"
+        Title="MainWindow" Height="65" Width="525" Topmost="True" WindowStyle="None" Icon="img/apple-green-icon.png" ResizeMode="NoResize" >
+    
+    <Grid>
+
+
+        <ProgressBar HorizontalAlignment="Center"  Name="mainBar" VerticalAlignment="Center" Width="497" Value="78" Grid.Column="0" Margin="10,10,10,28"/>
+
+        <StackPanel Orientation="Horizontal"  Margin="10,33,0,0" Name="pomodoroHolder" >
+            <ItemsControl ItemsSource="{Binding Path=Pomodoros}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Image HorizontalAlignment="Left" Height="24"  Width="24" Source="{Binding}"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+
+            <!--Image HorizontalAlignment="Left" Height="24"  Width="24" Source="img/tomato-icon-gray.png"/>
+            <Image HorizontalAlignment="Left" Height="24"  Width="24" Source="img/tomato-icon.png"/>
+            <Image HorizontalAlignment="Left" Height="24"  Width="24" Source="img/tomato-icon.png"/>
+            <Image HorizontalAlignment="Left" Height="24"  Width="24" Source="img/tomato-icon.png"/>
+            <Image HorizontalAlignment="Left" Height="24"  Width="24" Source="img/lemon-icon.png"/-->
+
+    </Grid>
+
+    <Controls:MetroWindow.ContextMenu>
+        <ContextMenu>
+            <MenuItem Header="Start work" Name="menuStartWork" Click="menuStartWork_Click"/>
+            <MenuItem Header="Cancel work session" Name="menuCancelWork" Click="menuCancelWork_Click" />
+
+            <MenuItem Header="Start Short Pause" Name="menuStartShortPause" Click="menuStartShortPause_Click" />
+            <MenuItem Header="Start Long Pause" Name="menuStartLongPause" />
+            <Separator />
+            <MenuItem Header="Settings.." Name="menuSettings" />
+        </ContextMenu>
+    </Controls:MetroWindow.ContextMenu>
+    
+</Controls:MetroWindow>
