@@ -17,6 +17,7 @@ namespace OpenPomodoro
     public partial class MainWindow : MetroWindow, INotifyPropertyChanged
     {
         int currentWindowState;
+        int previousWindowState;
 
         Timer getAttentionTimer;
         Timer workTimer;
@@ -29,11 +30,6 @@ namespace OpenPomodoro
 
         string PAUSE_IN_PROGRES = "img/lemon-icon.png";
         string PAUSE_COMPLETED = "img/circle.png";
-
-        int targetWorkSeconds = 2;
-        int targetPauseSeconds = 2;
-
-
 
 
 
@@ -50,25 +46,62 @@ namespace OpenPomodoro
             this.DataContext = this;
 
             workTimer = new Timer();
-            workTimer.Interval = 1000;
+            workTimer.Interval = 500;
             workTimer.Elapsed += new ElapsedEventHandler(OnWorkTimerdEvent);
 
             this.SetWindowState(WStates.DEFAULT);
 
-
             Pomodoros = new ObservableCollection<string>();
-            /*
-            Pomodoros.Add(GRAY_POMODORO);
-            Pomodoros.Add(NORMAL_POMODORO);
-            Pomodoros.Add(GRAY_LEMON);
-            Pomodoros.Add(NORMAL_LEMON);
-            */
+
+
+            // start working
+            this.SetWindowState(WStates.WORKING);
+
 
         }
+        #region Property TextTimePassed
+        private String _textTimePassed;
+        public String TextTimePassed
+        {
+            get
+            {
+                if (_textTimePassed == null)
+                {
+                    _textTimePassed = "--:--";
+                }
+
+                return _textTimePassed;
+            }
+            set
+            {
+                _textTimePassed = value;
+                OnPropertyChanged("TextTimePassed");
+            }
+        }
+        #endregion
+        #region Property TextTimeLeft
+        private String _textTimeLeft;
+        public String TextTimeLeft
+        {
+            get
+            {
+                if (_textTimeLeft == null)
+                {
+                    _textTimeLeft = "--:--";
+                }
+                return _textTimeLeft;
+            }
+            set
+            {
+                _textTimeLeft = value;
+                OnPropertyChanged("TextTimeLeft");
+            }
+        }
+        #endregion
 
 
 
-        int i = 0;
+        int deadTimeSeconds = 0; //todo: get rid of this..
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
@@ -102,38 +135,45 @@ namespace OpenPomodoro
 
         private void OnAtentionTimerdEvent(object source, ElapsedEventArgs e)
         {
-
-            this.Dispatcher.Invoke(() =>
+            if (++deadTimeSeconds >= SettingsSingleton.getInstance().getSecondsUntilDesperateAlert())
             {
-                if (++i % 2 == 0)
+                this.Dispatcher.Invoke(() =>
                 {
-                    this.Icon = new BitmapImage(new Uri("pack://application:,,,/OpenPomodoro;component/img/attention-icon.png"));
-                }
-                else
-                {
-                    this.Icon = new BitmapImage(new Uri("pack://application:,,,/OpenPomodoro;component/img/tomato-icon.png"));
-                }
+                    if (deadTimeSeconds % 2 == 0)
+                    {
+                        this.Icon = new BitmapImage(new Uri("pack://application:,,,/OpenPomodoro;component/img/attention-icon.png"));
+                    }
+                    else
+                    {
+                        this.Icon = new BitmapImage(new Uri("pack://application:,,,/OpenPomodoro;component/img/tomato-icon.png"));
+                    }
 
-                if (i % 10 == 0)
-                {
-                    this.Background = new SolidColorBrush(Color.FromArgb(255, 0, 255, 0));
-                }
-                else
-                {
-                    this.Background = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255));
-                }
-            });
+                    if (deadTimeSeconds % 10 == 0)
+                    {
+                        this.Background = new SolidColorBrush(Color.FromArgb(255, 0, 255, 0));
+                    }
+                    else
+                    {
+                        this.Background = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255));
+                    }
+                });
+            }
         }
 
         private void OnWorkTimerdEvent(object source, ElapsedEventArgs e)
         {
 
-            double seconds = (DateTime.Now - startTime).TotalSeconds;
-            
+            double elapsedSeconds = (DateTime.Now - startTime).TotalSeconds;
 
+
+            TimeSpan timePassed = TimeSpan.FromSeconds(elapsedSeconds);
+            TimeSpan timeLeft = TimeSpan.FromSeconds(targetSeconds - elapsedSeconds);
+
+            
             this.Dispatcher.Invoke(() =>
             {
-                if (seconds >= targetSeconds)
+
+                if (elapsedSeconds >= targetSeconds)
                 {
                     if (currentWindowState == WStates.WORKING)
                     {
@@ -143,10 +183,12 @@ namespace OpenPomodoro
                     {
                         SetWindowState(WStates.FINISHED_PAUSE);
                     }
-
                 }
 
-                mainBar.Value = (seconds / targetSeconds) * 100;
+                TextTimePassed = timePassed.ToString(@"mm\:ss");
+                TextTimeLeft = timeLeft.ToString(@"mm\:ss");
+
+                mainBar.Value = (elapsedSeconds / targetSeconds) * 100;
 
             });
         }
@@ -154,6 +196,7 @@ namespace OpenPomodoro
 
         private void ClearAlert()
         {
+            getAttentionTimer.Stop();
             this.Dispatcher.Invoke(() =>
             {
                 this.Icon = new BitmapImage(new Uri("pack://application:,,,/OpenPomodoro;component/img/tomato-icon.png"));
@@ -165,6 +208,7 @@ namespace OpenPomodoro
         {
             CleanMenu();
 
+            previousWindowState = currentWindowState;
             currentWindowState = state;
 
             switch (state)
@@ -177,6 +221,7 @@ namespace OpenPomodoro
 
                 case WStates.WORKING:
                     ClearAlert();
+                    targetSeconds = SettingsSingleton.getInstance().getDurationWork(); ;
                     Pomodoros.Add(WORK_INPROGRESS);
                     startTime = DateTime.Now;
                     workTimer.Start();
@@ -186,10 +231,8 @@ namespace OpenPomodoro
                 case WStates.FINISHED_WORK:
                     Pomodoros.Remove(WORK_INPROGRESS);
                     Pomodoros.Add(WORK_COMPLETED);
-
                     workTimer.Stop();
-                    menuStartShortPause.Visibility = Visibility.Visible;
-                    menuStartLongPause.Visibility = Visibility.Visible;
+                    SetWindowState(WStates.ALERTING);
                     break;
 
                 case WStates.PAUSING:
@@ -197,14 +240,29 @@ namespace OpenPomodoro
                     Pomodoros.Add(PAUSE_IN_PROGRES);
                     startTime = DateTime.Now;
                     workTimer.Start();
-                    //menuCancelWork.Visibility = Visibility.Visible;
+                    SetWindowState(WStates.ALERTING);
                     break;
 
                 case WStates.FINISHED_PAUSE:
                     Pomodoros.Remove(PAUSE_IN_PROGRES);
                     Pomodoros.Add(PAUSE_COMPLETED);
                     workTimer.Stop();
-                    menuStartWork.Visibility = Visibility.Visible;
+                    
+                    break;
+
+                case WStates.ALERTING:
+                    if (previousWindowState == WStates.FINISHED_WORK)
+                    {
+                        menuStartShortPause.Visibility = Visibility.Visible;
+                        menuStartLongPause.Visibility = Visibility.Visible;
+                    }
+                    if (previousWindowState == WStates.FINISHED_PAUSE)
+                    {
+                        menuStartWork.Visibility = Visibility.Visible;
+                    }
+                    deadTimeSeconds = 0;
+                    getAttentionTimer.Start();
+
                     break;
 
             }
@@ -222,7 +280,6 @@ namespace OpenPomodoro
 
         private void menuStartWork_Click(object sender, RoutedEventArgs e)
         {
-            targetSeconds = targetWorkSeconds;
             this.SetWindowState(WStates.WORKING);
         }
 
@@ -233,7 +290,7 @@ namespace OpenPomodoro
 
         private void menuStartShortPause_Click(object sender, RoutedEventArgs e)
         {
-            targetSeconds = targetPauseSeconds;
+            targetSeconds = SettingsSingleton.getInstance().getDurationShortPause();
             this.SetWindowState(WStates.PAUSING);
         }
     }

@@ -12,7 +12,7 @@
                        ShowCloseButton="False"
                        
         mc:Ignorable="d"
-        Title="MainWindow" Height="65" Width="525" Topmost="True" WindowStyle="None" Icon="img/apple-green-icon.png" ResizeMode="NoResize" >
+        Title="MainWindow" Height="65" Width="525" Topmost="True" WindowStyle="None" ResizeMode="NoResize" >
     
     <Grid>
 
@@ -34,11 +34,9 @@
             </ItemsControl>
         </StackPanel>
 
-            <!--Image HorizontalAlignment="Left" Height="24"  Width="24" Source="img/tomato-icon-gray.png"/>
-            <Image HorizontalAlignment="Left" Height="24"  Width="24" Source="img/tomato-icon.png"/>
-            <Image HorizontalAlignment="Left" Height="24"  Width="24" Source="img/tomato-icon.png"/>
-            <Image HorizontalAlignment="Left" Height="24"  Width="24" Source="img/tomato-icon.png"/>
-            <Image HorizontalAlignment="Left" Height="24"  Width="24" Source="img/lemon-icon.png"/-->
+        <TextBlock Margin="14,1,439,47" Text="{Binding TextTimeLeft}"  TextAlignment="Left" />
+        <TextBlock Margin="401,1,14,47" Text="{Binding TextTimePassed}"  TextAlignment="Right"/>
+        
 
     </Grid>
 

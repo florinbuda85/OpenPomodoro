@@ -14,6 +14,8 @@ namespace OpenPomodoro
         public const int PAUSING = 30;
         public const int FINISHED_PAUSE = 40;
 
+        public const int ALERTING = 50;
+
 
     }
 }
