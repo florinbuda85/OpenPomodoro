@@ -28,7 +28,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Image HorizontalAlignment="Left" Height="24"  Width="24" Source="{Binding}"/>
+                        <Image HorizontalAlignment="Left" Height="24"   Source="{Binding}"/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

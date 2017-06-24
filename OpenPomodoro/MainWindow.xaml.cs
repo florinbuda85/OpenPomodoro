@@ -27,11 +27,11 @@ namespace OpenPomodoro
         string WORK_INPROGRESS = "img/tomato-icon-gray.png";
         string WORK_COMPLETED = "img/tomato-icon.png";
 
-        string PAUSE_IN_PROGRES = "img/lemon-icon-gray.png";
-        string PAUSE_COMPLETED = "img/lemon-icon.png";
+        string PAUSE_IN_PROGRES = "img/lemon-icon.png";
+        string PAUSE_COMPLETED = "img/circle.png";
 
-        int targetWorkSeconds = 25 * 60;
-
+        int targetWorkSeconds = 2;
+        int targetPauseSeconds = 2;
 
 
 
@@ -233,7 +233,7 @@ namespace OpenPomodoro
 
         private void menuStartShortPause_Click(object sender, RoutedEventArgs e)
         {
-            targetSeconds = 60 * 5;
+            targetSeconds = targetPauseSeconds;
             this.SetWindowState(WStates.PAUSING);
         }
     }
