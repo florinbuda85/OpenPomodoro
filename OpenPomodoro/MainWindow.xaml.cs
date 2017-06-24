@@ -24,11 +24,11 @@ namespace OpenPomodoro
         DateTime startTime;
         int targetSeconds = 0;
 
-        string GRAY_POMODORO = "img/tomato-icon-gray.png";
-        string NORMAL_POMODORO = "img/tomato-icon.png";
+        string WORK_INPROGRESS = "img/tomato-icon-gray.png";
+        string WORK_COMPLETED = "img/tomato-icon.png";
 
-        string GRAY_LEMON = "img/lemon-icon-gray.png";
-        string NORMAL_LEMON = "img/lemon-icon.png";
+        string PAUSE_IN_PROGRES = "img/lemon-icon-gray.png";
+        string PAUSE_COMPLETED = "img/lemon-icon.png";
 
         int targetWorkSeconds = 25 * 60;
 
@@ -177,15 +177,15 @@ namespace OpenPomodoro
 
                 case WStates.WORKING:
                     ClearAlert();
-                    Pomodoros.Add(GRAY_POMODORO);
+                    Pomodoros.Add(WORK_INPROGRESS);
                     startTime = DateTime.Now;
                     workTimer.Start();
                     menuCancelWork.Visibility = Visibility.Visible;
                     break;
 
                 case WStates.FINISHED_WORK:
-                    Pomodoros.Remove(GRAY_POMODORO);
-                    Pomodoros.Add(NORMAL_POMODORO);
+                    Pomodoros.Remove(WORK_INPROGRESS);
+                    Pomodoros.Add(WORK_COMPLETED);
 
                     workTimer.Stop();
                     menuStartShortPause.Visibility = Visibility.Visible;
@@ -194,15 +194,15 @@ namespace OpenPomodoro
 
                 case WStates.PAUSING:
                     ClearAlert();
-                    Pomodoros.Add(GRAY_LEMON);
+                    Pomodoros.Add(PAUSE_IN_PROGRES);
                     startTime = DateTime.Now;
                     workTimer.Start();
                     //menuCancelWork.Visibility = Visibility.Visible;
                     break;
 
                 case WStates.FINISHED_PAUSE:
-                    Pomodoros.Remove(GRAY_LEMON);
-                    Pomodoros.Add(NORMAL_LEMON);
+                    Pomodoros.Remove(PAUSE_IN_PROGRES);
+                    Pomodoros.Add(PAUSE_COMPLETED);
                     workTimer.Stop();
                     menuStartWork.Visibility = Visibility.Visible;
                     break;
