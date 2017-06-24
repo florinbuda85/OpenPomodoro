@@ -148,9 +148,10 @@ namespace OpenPomodoro
                         this.Icon = new BitmapImage(new Uri("pack://application:,,,/OpenPomodoro;component/img/tomato-icon.png"));
                     }
 
-                    if (deadTimeSeconds % 10 == 0)
+                    if (deadTimeSeconds % 7 == 0)
                     {
                         this.Background = new SolidColorBrush(Color.FromArgb(255, 0, 255, 0));
+                        System.Media.SystemSounds.Beep.Play();
                     }
                     else
                     {
@@ -232,6 +233,7 @@ namespace OpenPomodoro
                     Pomodoros.Remove(WORK_INPROGRESS);
                     Pomodoros.Add(WORK_COMPLETED);
                     workTimer.Stop();
+                    System.Media.SystemSounds.Asterisk.Play();
                     SetWindowState(WStates.ALERTING);
                     break;
 
@@ -240,14 +242,14 @@ namespace OpenPomodoro
                     Pomodoros.Add(PAUSE_IN_PROGRES);
                     startTime = DateTime.Now;
                     workTimer.Start();
-                    SetWindowState(WStates.ALERTING);
                     break;
 
                 case WStates.FINISHED_PAUSE:
                     Pomodoros.Remove(PAUSE_IN_PROGRES);
                     Pomodoros.Add(PAUSE_COMPLETED);
                     workTimer.Stop();
-                    
+                    System.Media.SystemSounds.Asterisk.Play();
+                    SetWindowState(WStates.ALERTING);
                     break;
 
                 case WStates.ALERTING:
