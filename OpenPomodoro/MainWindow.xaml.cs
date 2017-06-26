@@ -5,6 +5,7 @@ using MahApps.Metro.Controls;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Timers;
 using System.Windows;
 using System.Windows.Media;
@@ -18,7 +19,6 @@ namespace OpenPomodoro
     public partial class MainWindow : MetroWindow, INotifyPropertyChanged
     {
         int currentWindowState;
-        int previousWindowState;
 
         Timer getAttentionTimer;
         Timer workTimer;
@@ -26,11 +26,11 @@ namespace OpenPomodoro
         DateTime startTime;
         int targetSeconds = 0;
 
-        string WORK_INPROGRESS = "img/tomato-icon-gray.png";
-        string WORK_COMPLETED = "img/tomato-icon.png";
+        const string WORK_INPROGRESS = "img/tomato-icon-gray.png";
+        const string WORK_COMPLETED = "img/tomato-icon.png";
 
-        string PAUSE_IN_PROGRES = "img/lemon-icon.png";
-        string PAUSE_COMPLETED = "img/circle.png";
+        const string PAUSE_IN_PROGRES = "img/lemon-icon.png";
+        const string PAUSE_COMPLETED = "img/circle.png";
 
 
 
@@ -100,7 +100,7 @@ namespace OpenPomodoro
             }
         }
         #endregion
-        
+
 
         int deadTimeSeconds = 0; //todo: get rid of this..
 
@@ -153,8 +153,6 @@ namespace OpenPomodoro
                     {
                         this.Background = new SolidColorBrush(Color.FromArgb(255, 0, 255, 0));
                         System.Media.SystemSounds.Beep.Play();
-
-                        this.Focus();
                     }
                     else
                     {
@@ -173,7 +171,7 @@ namespace OpenPomodoro
             TimeSpan timePassed = TimeSpan.FromSeconds(elapsedSeconds);
             TimeSpan timeLeft = TimeSpan.FromSeconds(targetSeconds - elapsedSeconds);
 
-            
+
             this.Dispatcher.Invoke(() =>
             {
 
@@ -212,7 +210,6 @@ namespace OpenPomodoro
         {
             CleanMenu();
 
-            previousWindowState = currentWindowState;
             currentWindowState = state;
 
             switch (state)
@@ -230,13 +227,20 @@ namespace OpenPomodoro
                     Pomodoros.Add(WORK_INPROGRESS);
                     startTime = DateTime.Now;
                     workTimer.Start();
-                    menuCancelWork.Visibility = Visibility.Visible;
+                    menuCancelProgres.Visibility = Visibility.Visible;
                     break;
 
                 case WStates.FINISHED_WORK:
                     Pomodoros.Remove(WORK_INPROGRESS);
                     Pomodoros.Add(WORK_COMPLETED);
+                    SetWindowState(WStates.STOP);
+                    break;
+
+                case WStates.STOP:
                     workTimer.Stop();
+                    Pomodoros.Remove(WORK_INPROGRESS);
+                    Pomodoros.Remove(PAUSE_IN_PROGRES);
+                    System.Media.SystemSounds.Asterisk.Play();
                     System.Media.SystemSounds.Asterisk.Play();
                     SetWindowState(WStates.ALERTING);
                     break;
@@ -247,26 +251,37 @@ namespace OpenPomodoro
                     Pomodoros.Add(PAUSE_IN_PROGRES);
                     startTime = DateTime.Now;
                     workTimer.Start();
+                    menuCancelProgres.Visibility = Visibility.Visible;
                     break;
 
                 case WStates.FINISHED_PAUSE:
                     Pomodoros.Remove(PAUSE_IN_PROGRES);
                     Pomodoros.Add(PAUSE_COMPLETED);
-                    workTimer.Stop();
-                    System.Media.SystemSounds.Asterisk.Play();
-                    SetWindowState(WStates.ALERTING);
+                    SetWindowState(WStates.STOP);
                     break;
 
                 case WStates.ALERTING:
-                    if (previousWindowState == WStates.FINISHED_WORK)
+                    changeTheme("orange");
+
+                    if (Pomodoros.Count() > 0)
                     {
-                        menuStartShortPause.Visibility = Visibility.Visible;
-                        menuStartLongPause.Visibility = Visibility.Visible;
+                        if (Pomodoros.Last() == WORK_COMPLETED)
+                        {
+                            menuStartShortPause.Visibility = Visibility.Visible;
+                            menuStartLongPause.Visibility = Visibility.Visible;
+                        }
+                        else
+                        {
+                            menuStartWork.Visibility = Visibility.Visible;
+                        }
                     }
-                    if (previousWindowState == WStates.FINISHED_PAUSE)
+                    else
                     {
                         menuStartWork.Visibility = Visibility.Visible;
                     }
+
+
+
                     deadTimeSeconds = 0;
                     getAttentionTimer.Start();
 
@@ -287,7 +302,7 @@ namespace OpenPomodoro
             menuStartWork.Visibility = Visibility.Collapsed;
             menuStartLongPause.Visibility = Visibility.Collapsed;
             menuStartShortPause.Visibility = Visibility.Collapsed;
-            menuCancelWork.Visibility = Visibility.Collapsed;
+            menuCancelProgres.Visibility = Visibility.Collapsed;
 
             menuSettings.Visibility = Visibility.Visible;
         }
@@ -297,9 +312,9 @@ namespace OpenPomodoro
             this.SetWindowState(WStates.WORKING);
         }
 
-        private void menuCancelWork_Click(object sender, RoutedEventArgs e)
+        private void menuCancelProgress_Click(object sender, RoutedEventArgs e)
         {
-            //this.SetWindowState(WStates.WORKING);
+            this.SetWindowState(WStates.STOP);
         }
 
         private void menuStartShortPause_Click(object sender, RoutedEventArgs e)

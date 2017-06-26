@@ -42,14 +42,14 @@ namespace OpenPomodoro
             {
                 this.settingsHolder = JsonConvert.DeserializeObject<Settings>(File.ReadAllText("settings.json"));
 
-            } catch (Exception e)
+            } catch (Exception)
             {
                 settingsHolder = new Settings();
                 settingsHolder.DurationShortPause = 5 * 60;
                 settingsHolder.DurationLongPause = 15 * 60;
-                settingsHolder.DurationWork = 5; //25 * 60;
+                settingsHolder.DurationWork = 25 * 60;
 
-                settingsHolder.SecondsUntilDesperateAlert = 30;
+                settingsHolder.SecondsUntilDesperateAlert = 300;
                 SaveSettings();
             }
         }

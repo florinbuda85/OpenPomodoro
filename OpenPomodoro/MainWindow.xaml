@@ -34,8 +34,8 @@
             </ItemsControl>
         </StackPanel>
 
-        <TextBlock Margin="14,1,439,47" Text="{Binding TextTimeLeft}"  TextAlignment="Left" />
-        <TextBlock Margin="401,1,14,47" Text="{Binding TextTimePassed}"  TextAlignment="Right"/>
+        <TextBlock Margin="14,1,439,47" Text="{Binding TextTimePassed}"  TextAlignment="Left" />
+        <TextBlock Margin="401,1,14,47" Text="{Binding TextTimeLeft}"  TextAlignment="Right"/>
         
 
     </Grid>
@@ -43,7 +43,7 @@
     <Controls:MetroWindow.ContextMenu>
         <ContextMenu>
             <MenuItem Header="Start work" Name="menuStartWork" Click="menuStartWork_Click"/>
-            <MenuItem Header="Cancel work session" Name="menuCancelWork" Click="menuCancelWork_Click" />
+            <MenuItem Header="Cancel progress" Name="menuCancelProgres" Click="menuCancelProgress_Click" />
 
             <MenuItem Header="Start Short Pause" Name="menuStartShortPause" Click="menuStartShortPause_Click" />
             <MenuItem Header="Start Long Pause" Name="menuStartLongPause" />
