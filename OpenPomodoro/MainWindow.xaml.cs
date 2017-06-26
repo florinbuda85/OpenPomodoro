@@ -1,5 +1,6 @@
 ﻿
 
+using MahApps.Metro;
 using MahApps.Metro.Controls;
 using System;
 using System.Collections.ObjectModel;
@@ -79,6 +80,7 @@ namespace OpenPomodoro
             }
         }
         #endregion
+
         #region Property TextTimeLeft
         private String _textTimeLeft;
         public String TextTimeLeft
@@ -98,8 +100,7 @@ namespace OpenPomodoro
             }
         }
         #endregion
-
-
+        
 
         int deadTimeSeconds = 0; //todo: get rid of this..
 
@@ -152,6 +153,8 @@ namespace OpenPomodoro
                     {
                         this.Background = new SolidColorBrush(Color.FromArgb(255, 0, 255, 0));
                         System.Media.SystemSounds.Beep.Play();
+
+                        this.Focus();
                     }
                     else
                     {
@@ -222,6 +225,7 @@ namespace OpenPomodoro
 
                 case WStates.WORKING:
                     ClearAlert();
+                    changeTheme("red");
                     targetSeconds = SettingsSingleton.getInstance().getDurationWork(); ;
                     Pomodoros.Add(WORK_INPROGRESS);
                     startTime = DateTime.Now;
@@ -239,6 +243,7 @@ namespace OpenPomodoro
 
                 case WStates.PAUSING:
                     ClearAlert();
+                    changeTheme("green");
                     Pomodoros.Add(PAUSE_IN_PROGRES);
                     startTime = DateTime.Now;
                     workTimer.Start();
@@ -268,6 +273,13 @@ namespace OpenPomodoro
                     break;
 
             }
+        }
+
+        private void changeTheme(string newTheme)
+        {
+            var theme = ThemeManager.DetectAppStyle(Application.Current);
+            var accent = ThemeManager.GetAccent(newTheme);
+            ThemeManager.ChangeAppStyle(Application.Current, accent, theme.Item1);
         }
 
         private void CleanMenu()
