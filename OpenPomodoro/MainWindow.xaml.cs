@@ -152,11 +152,15 @@ namespace OpenPomodoro
                     if (deadTimeSeconds % 7 == 0)
                     {
                         this.Background = new SolidColorBrush(Color.FromArgb(255, 0, 255, 0));
-                        System.Media.SystemSounds.Beep.Play();
                     }
                     else
                     {
                         this.Background = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255));
+                    }
+
+                    if (deadTimeSeconds % 40 == 0)
+                    {
+                        System.Media.SystemSounds.Beep.Play();
                     }
                 });
             }
@@ -261,26 +265,11 @@ namespace OpenPomodoro
                     break;
 
                 case WStates.ALERTING:
-                    changeTheme("orange");
+                    changeTheme("blue");
 
-                    if (Pomodoros.Count() > 0)
-                    {
-                        if (Pomodoros.Last() == WORK_COMPLETED)
-                        {
-                            menuStartShortPause.Visibility = Visibility.Visible;
-                            menuStartLongPause.Visibility = Visibility.Visible;
-                        }
-                        else
-                        {
-                            menuStartWork.Visibility = Visibility.Visible;
-                        }
-                    }
-                    else
-                    {
-                        menuStartWork.Visibility = Visibility.Visible;
-                    }
-
-
+                    menuStartShortPause.Visibility = Visibility.Visible;
+                    menuStartLongPause.Visibility = Visibility.Visible;
+                    menuStartWork.Visibility = Visibility.Visible;
 
                     deadTimeSeconds = 0;
                     getAttentionTimer.Start();
