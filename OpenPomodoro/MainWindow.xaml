@@ -46,7 +46,7 @@
             <MenuItem Header="Cancel progress" Name="menuCancelProgres" Click="menuCancelProgress_Click" />
 
             <MenuItem Header="Start Short Pause" Name="menuStartShortPause" Click="menuStartShortPause_Click" />
-            <MenuItem Header="Start Long Pause" Name="menuStartLongPause" />
+            <MenuItem Header="Start Long Pause" Name="menuStartLongPause" Click="menuStartLongPause_Click" />
             <Separator />
             <MenuItem Header="Settings.." Name="menuSettings" />
         </ContextMenu>

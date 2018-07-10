@@ -59,6 +59,11 @@ namespace OpenPomodoro
             return settingsHolder.DurationShortPause;
         }
 
+        public int GetDurationLongPause()
+        {
+            return settingsHolder.DurationLongPause;
+        }
+
         public int getDurationWork()
         {
             return settingsHolder.DurationWork;

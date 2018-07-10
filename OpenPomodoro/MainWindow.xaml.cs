@@ -19,6 +19,7 @@ namespace OpenPomodoro
     public partial class MainWindow : MetroWindow, INotifyPropertyChanged
     {
         int currentWindowState;
+        int previouWindowState;
 
         Timer getAttentionTimer;
         Timer workTimer;
@@ -155,7 +156,7 @@ namespace OpenPomodoro
                     }
                     else
                     {
-                        this.Background = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255));
+                        this.Background = new SolidColorBrush(Color.FromArgb(255, 233, 236, 255));
                     }
 
                     if (deadTimeSeconds % 40 == 0)
@@ -185,7 +186,7 @@ namespace OpenPomodoro
                     {
                         SetWindowState(WStates.FINISHED_WORK);
                     }
-                    if (currentWindowState == WStates.PAUSING)
+                    if (currentWindowState == WStates.PAUSING || currentWindowState == WStates.PAUSING_LONG)
                     {
                         SetWindowState(WStates.FINISHED_PAUSE);
                     }
@@ -206,7 +207,7 @@ namespace OpenPomodoro
             this.Dispatcher.Invoke(() =>
             {
                 this.Icon = new BitmapImage(new Uri("pack://application:,,,/OpenPomodoro;component/img/tomato-icon.png"));
-                this.Background = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255));
+                this.Background = new SolidColorBrush(Color.FromArgb(255, 233, 236, 255));
             });
         }
 
@@ -214,6 +215,7 @@ namespace OpenPomodoro
         {
             CleanMenu();
 
+            previouWindowState = currentWindowState;
             currentWindowState = state;
 
             switch (state)
@@ -250,6 +252,7 @@ namespace OpenPomodoro
                     break;
 
                 case WStates.PAUSING:
+                case WStates.PAUSING_LONG:
                     ClearAlert();
                     changeTheme("green");
                     Pomodoros.Add(PAUSE_IN_PROGRES);
@@ -260,7 +263,16 @@ namespace OpenPomodoro
 
                 case WStates.FINISHED_PAUSE:
                     Pomodoros.Remove(PAUSE_IN_PROGRES);
-                    Pomodoros.Add(PAUSE_COMPLETED);
+                    if (previouWindowState == WStates.PAUSING_LONG)
+                    {
+                        Pomodoros.Add(PAUSE_COMPLETED);
+                        Pomodoros.Add(PAUSE_COMPLETED);
+                        Pomodoros.Add(PAUSE_COMPLETED);
+                    }
+                    else
+                    {
+                        Pomodoros.Add(PAUSE_COMPLETED);
+                    }
                     SetWindowState(WStates.STOP);
                     break;
 
@@ -310,6 +322,12 @@ namespace OpenPomodoro
         {
             targetSeconds = SettingsSingleton.getInstance().getDurationShortPause();
             this.SetWindowState(WStates.PAUSING);
+        }
+
+        private void menuStartLongPause_Click(object sender, RoutedEventArgs e)
+        {
+            targetSeconds = SettingsSingleton.getInstance().GetDurationLongPause();
+            this.SetWindowState(WStates.PAUSING_LONG);
         }
     }
 }
