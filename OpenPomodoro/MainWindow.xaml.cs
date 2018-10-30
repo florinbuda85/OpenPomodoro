@@ -26,6 +26,7 @@ namespace OpenPomodoro
 
         DateTime startTime;
         int targetSeconds = 0;
+        int deadTimeSeconds = 0; //todo: get rid of this..
 
         const string WORK_INPROGRESS = "img/tomato-icon-gray.png";
         const string WORK_COMPLETED = "img/tomato-icon.png";
@@ -102,9 +103,6 @@ namespace OpenPomodoro
         }
         #endregion
 
-
-        int deadTimeSeconds = 0; //todo: get rid of this..
-
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {
@@ -114,8 +112,6 @@ namespace OpenPomodoro
                     this.PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
             }
         }
-
-
 
         #region ObservableCollection Pomodoros
         private ObservableCollection<String> _pomodoros;
@@ -234,6 +230,7 @@ namespace OpenPomodoro
                     startTime = DateTime.Now;
                     workTimer.Start();
                     menuCancelProgres.Visibility = Visibility.Visible;
+                    menuForceCompleteProgres.Visibility = Visibility.Visible;
                     break;
 
                 case WStates.FINISHED_WORK:
@@ -259,6 +256,7 @@ namespace OpenPomodoro
                     startTime = DateTime.Now;
                     workTimer.Start();
                     menuCancelProgres.Visibility = Visibility.Visible;
+                    menuForceCompleteProgres.Visibility = Visibility.Visible;
                     break;
 
                 case WStates.FINISHED_PAUSE:
@@ -304,6 +302,7 @@ namespace OpenPomodoro
             menuStartLongPause.Visibility = Visibility.Collapsed;
             menuStartShortPause.Visibility = Visibility.Collapsed;
             menuCancelProgres.Visibility = Visibility.Collapsed;
+            menuForceCompleteProgres.Visibility = Visibility.Collapsed;
 
             menuSettings.Visibility = Visibility.Visible;
         }
@@ -328,6 +327,18 @@ namespace OpenPomodoro
         {
             targetSeconds = SettingsSingleton.getInstance().GetDurationLongPause();
             this.SetWindowState(WStates.PAUSING_LONG);
+        }
+
+        private void menuForceCompleteProgres_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentWindowState == WStates.WORKING)
+            {
+                SetWindowState(WStates.FINISHED_WORK);
+            }
+            if (currentWindowState == WStates.PAUSING || currentWindowState == WStates.PAUSING_LONG)
+            {
+                SetWindowState(WStates.FINISHED_PAUSE);
+            }
         }
     }
 }
