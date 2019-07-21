@@ -231,15 +231,17 @@ namespace OpenPomodoro
                     workTimer.Start();
                     menuCancelProgres.Visibility = Visibility.Visible;
                     menuForceCompleteProgres.Visibility = Visibility.Visible;
+                    PomodoroDatabase.DBSingleton.getInstance().StartPomodoro();
                     break;
 
                 case WStates.FINISHED_WORK:
                     Pomodoros.Remove(WORK_INPROGRESS);
                     Pomodoros.Add(WORK_COMPLETED);
                     SetWindowState(WStates.STOP);
+                    PomodoroDatabase.DBSingleton.getInstance().CompletePomodoro();
                     break;
 
-                case WStates.STOP:
+                case WStates.STOP: // = CANCEL
                     workTimer.Stop();
                     Pomodoros.Remove(WORK_INPROGRESS);
                     Pomodoros.Remove(PAUSE_IN_PROGRES);
