@@ -49,7 +49,7 @@
             <MenuItem Header="Start Short Pause" Name="menuStartShortPause" Click="menuStartShortPause_Click" />
             <MenuItem Header="Start Long Pause" Name="menuStartLongPause" Click="menuStartLongPause_Click" />
             <Separator />
-            <MenuItem Header="Settings.." Name="menuSettings" />
+            <MenuItem Header="Settings.." Name="menuSettings" Click="MenuSettings_Click" />
         </ContextMenu>
     </Controls:MetroWindow.ContextMenu>
     

@@ -29,7 +29,7 @@ namespace OpenPomodoro
             return _instance;
         }
 
-        private void SaveSettings()
+        public void SaveSettings()
         {
             string json = JsonConvert.SerializeObject(settingsHolder);
             File.WriteAllText("settings.json", json);
@@ -69,16 +69,18 @@ namespace OpenPomodoro
             return settingsHolder.DurationWork;
         }
 
-
         public int getSecondsUntilDesperateAlert()
         {
             return settingsHolder.SecondsUntilDesperateAlert;
         }
 
-
+        public Settings GetSettings()
+        {
+            return settingsHolder;
+        }
     }
 
-    class Settings
+    public class Settings
     {
         public int DurationShortPause { get; set; }
         public int DurationLongPause { get; set; }

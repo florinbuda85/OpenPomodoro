@@ -14,7 +14,6 @@ namespace PomodoroDatabase
 
         SQLiteConnection DatabaseLink;
 
-
         private DBSingleton()
         {
             if (!File.Exists(dbFileName))
@@ -58,7 +57,6 @@ namespace PomodoroDatabase
         {
             var db = new SQLiteConnection(dbFileName);
             db.CreateTable<Pomodoro>();
-
             db.Close();
         }
 

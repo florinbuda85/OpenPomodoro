@@ -342,5 +342,15 @@ namespace OpenPomodoro
                 SetWindowState(WStates.FINISHED_PAUSE);
             }
         }
+
+        private void MenuSettings_Click(object sender, RoutedEventArgs e)
+        {
+            this.Topmost = false;
+
+            SettingsView view = new SettingsView();
+            view.ShowDialog();
+
+            this.Topmost = true;
+        }
     }
 }

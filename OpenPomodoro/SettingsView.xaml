@@ -1,0 +1,29 @@
+﻿<Controls:MetroWindow
+        xmlns:Controls="http://metro.mahapps.com/winfx/xaml/controls" x:Class="OpenPomodoro.SettingsView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:OpenPomodoro"
+        mc:Ignorable="d"
+        DataContext="{Binding SettingsVM, Source={StaticResource Locator}}"
+        GlowBrush="{DynamicResource AccentColorBrush}" 
+        Title="SettingsView" Height="450" Width="259">
+    <StackPanel Orientation="Vertical" Margin="20">
+
+        <Label Content="Work session duration" Margin="0,0,0,0" />
+        <TextBox Width="200" HorizontalAlignment="Left" Text="{Binding SettingsHolder.DurationWork}"/>
+
+        <Label Content="Short pause duration" Margin="0,0,0,0" />
+        <TextBox Width="200" HorizontalAlignment="Left" Text="{Binding SettingsHolder.DurationShortPause}"/>
+
+        <Label Content="Long pause duration" Margin="0,0,0,0" />
+        <TextBox Width="200" HorizontalAlignment="Left" Text="{Binding SettingsHolder.DurationLongPause}"/>
+
+        <Label Content="Seconds until 'desperate' alert" Margin="0,0,0,0" />
+        <TextBox Width="200" HorizontalAlignment="Left" Text="{Binding SettingsHolder.SecondsUntilDesperateAlert}"/>
+
+        <Button Content="Save settings" Margin="0,50,0,0" Command="{Binding DoSaveSettings}" Width="150" HorizontalAlignment="Left" />
+
+    </StackPanel>
+</Controls:MetroWindow>
