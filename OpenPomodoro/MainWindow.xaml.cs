@@ -5,7 +5,7 @@ using MahApps.Metro.Controls;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
+using System.Reflection;
 using System.Timers;
 using System.Windows;
 using System.Windows.Media;
@@ -109,7 +109,9 @@ namespace OpenPomodoro
             if (!string.IsNullOrEmpty(propertyName))
             {
                 if (this.PropertyChanged != null)
+                {
                     this.PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+                }
             }
         }
 
@@ -351,6 +353,14 @@ namespace OpenPomodoro
             view.ShowDialog();
 
             this.Topmost = true;
+        }
+
+        private void MenuChart_Click(object sender, RoutedEventArgs e)
+        {
+
+            Tuple<string, string> chartData = PomodoroDatabase.DBSingleton.getInstance().GetChartData(DateTime.Today);
+
+            ChartGeneratior.ChartHelper.ShowChart(chartData);
         }
     }
 }

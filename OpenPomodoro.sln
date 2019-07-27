@@ -7,6 +7,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenPomodoro", "OpenPomodor
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PomodoroDatabase", "PomodoroDatabase\PomodoroDatabase.csproj", "{06FCA290-EF46-4660-8BC9-AAE5E55C7319}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChartGeneratior", "ChartGeneratior\ChartGeneratior.csproj", "{A70DF78E-C589-4684-B097-375AEDE72EE3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZCaller", "ZCaller\ZCaller.csproj", "{92CE607C-21EA-4BE9-B4AB-71552C2DDCC9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,14 @@ Global
 		{06FCA290-EF46-4660-8BC9-AAE5E55C7319}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{06FCA290-EF46-4660-8BC9-AAE5E55C7319}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{06FCA290-EF46-4660-8BC9-AAE5E55C7319}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A70DF78E-C589-4684-B097-375AEDE72EE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A70DF78E-C589-4684-B097-375AEDE72EE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A70DF78E-C589-4684-B097-375AEDE72EE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A70DF78E-C589-4684-B097-375AEDE72EE3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{92CE607C-21EA-4BE9-B4AB-71552C2DDCC9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{92CE607C-21EA-4BE9-B4AB-71552C2DDCC9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{92CE607C-21EA-4BE9-B4AB-71552C2DDCC9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{92CE607C-21EA-4BE9-B4AB-71552C2DDCC9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
