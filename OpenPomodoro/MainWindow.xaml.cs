@@ -110,7 +110,7 @@ namespace OpenPomodoro
             {
                 if (this.PropertyChanged != null)
                 {
-                    this.PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+                    PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
                 }
             }
         }
@@ -226,7 +226,7 @@ namespace OpenPomodoro
 
                 case WStates.WORKING:
                     ClearAlert();
-                    changeTheme("red");
+                    ChangeTheme("red");
                     targetSeconds = SettingsSingleton.getInstance().getDurationWork(); ;
                     Pomodoros.Add(WORK_INPROGRESS);
                     startTime = DateTime.Now;
@@ -255,7 +255,7 @@ namespace OpenPomodoro
                 case WStates.PAUSING:
                 case WStates.PAUSING_LONG:
                     ClearAlert();
-                    changeTheme("green");
+                    ChangeTheme("green");
                     Pomodoros.Add(PAUSE_IN_PROGRES);
                     startTime = DateTime.Now;
                     workTimer.Start();
@@ -279,7 +279,7 @@ namespace OpenPomodoro
                     break;
 
                 case WStates.ALERTING:
-                    changeTheme("blue");
+                    ChangeTheme("blue");
 
                     menuStartShortPause.Visibility = Visibility.Visible;
                     menuStartLongPause.Visibility = Visibility.Visible;
@@ -293,7 +293,7 @@ namespace OpenPomodoro
             }
         }
 
-        private void changeTheme(string newTheme)
+        private void ChangeTheme(string newTheme)
         {
             var theme = ThemeManager.DetectAppStyle(Application.Current);
             var accent = ThemeManager.GetAccent(newTheme);
