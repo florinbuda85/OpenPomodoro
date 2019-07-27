@@ -177,6 +177,10 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ChartGeneratior\ChartGeneratior.csproj">
+      <Project>{a70df78e-c589-4684-b097-375aede72ee3}</Project>
+      <Name>ChartGeneratior</Name>
+    </ProjectReference>
     <ProjectReference Include="..\PomodoroDatabase\PomodoroDatabase.csproj">
       <Project>{06fca290-ef46-4660-8bc9-aae5e55c7319}</Project>
       <Name>PomodoroDatabase</Name>
