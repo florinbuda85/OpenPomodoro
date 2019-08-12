@@ -12,8 +12,12 @@
                        ShowCloseButton="False"
                        
         mc:Ignorable="d"
-        Title="MainWindow" Height="65" Width="525" Topmost="True" WindowStyle="None" ResizeMode="NoResize" >
-    
+        Title="MainWindow" Height="65" Width="525" Topmost="True" ResizeMode="NoResize" AllowsTransparency="True" WindowStyle="None" >
+
+    <!--Controls:MetroWindow.Background>
+        <SolidColorBrush Color="White" Opacity="0.5"/>
+    </-->
+
     <Grid>
 
 
@@ -36,7 +40,7 @@
 
         <TextBlock Margin="14,1,439,47" Text="{Binding TextTimePassed}"  TextAlignment="Left" />
         <TextBlock Margin="401,1,14,47" Text="{Binding TextTimeLeft}"  TextAlignment="Right"/>
-        
+
 
     </Grid>
 
@@ -53,5 +57,5 @@
             <MenuItem Header="Settings.." Name="menuSettings" Click="MenuSettings_Click" />
         </ContextMenu>
     </Controls:MetroWindow.ContextMenu>
-    
+
 </Controls:MetroWindow>
