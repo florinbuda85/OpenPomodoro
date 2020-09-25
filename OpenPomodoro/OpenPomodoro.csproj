@@ -85,6 +85,12 @@
     <Reference Include="System.Xaml">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
     </Reference>
+    <Reference Include="ToastNotifications, Version=2.5.1.0, Culture=neutral, PublicKeyToken=e89d9d7314a7c797, processorArchitecture=MSIL">
+      <HintPath>..\packages\ToastNotifications.2.5.1\lib\net40\ToastNotifications.dll</HintPath>
+    </Reference>
+    <Reference Include="ToastNotifications.Messages, Version=2.5.1.0, Culture=neutral, PublicKeyToken=e89d9d7314a7c797, processorArchitecture=MSIL">
+      <HintPath>..\packages\ToastNotifications.Messages.2.5.1\lib\net40\ToastNotifications.Messages.dll</HintPath>
+    </Reference>
     <Reference Include="WindowsBase" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
@@ -177,14 +183,19 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ChartGeneratior\ChartGeneratior.csproj">
+    <ProjectReference Include="..\ChartGeneratior\ChartGenerator.csproj">
       <Project>{a70df78e-c589-4684-b097-375aede72ee3}</Project>
-      <Name>ChartGeneratior</Name>
+      <Name>ChartGenerator</Name>
     </ProjectReference>
     <ProjectReference Include="..\PomodoroDatabase\PomodoroDatabase.csproj">
       <Project>{06fca290-ef46-4660-8bc9-aae5e55c7319}</Project>
       <Name>PomodoroDatabase</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="DefaultPauseAdvices.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

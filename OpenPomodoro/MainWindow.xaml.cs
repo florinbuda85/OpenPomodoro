@@ -1,18 +1,25 @@
-﻿
-
-using MahApps.Metro;
+﻿using MahApps.Metro;
 using MahApps.Metro.Controls;
 using System;
+using System.Windows;
+using System.Linq;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Reflection;
 using System.Timers;
-using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using PomodoroDatabase;
+using System.Xml;
+using ToastNotifications;
+using ToastNotifications.Lifetime;
+using ToastNotifications.Position;
+using ToastNotifications.Messages;
 
 namespace OpenPomodoro
 {
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -34,7 +41,20 @@ namespace OpenPomodoro
         const string PAUSE_IN_PROGRES = "img/lemon-icon.png";
         const string PAUSE_COMPLETED = "img/circle.png";
 
+        Notifier notifier = new Notifier(cfg =>
+        {
+            cfg.PositionProvider = new WindowPositionProvider(
+                parentWindow: Application.Current.MainWindow,
+                corner: Corner.BottomRight,
+                offsetX: 0,
+                offsetY: 0);
 
+            cfg.LifetimeSupervisor = new TimeAndCountBasedLifetimeSupervisor(
+                notificationLifetime: TimeSpan.FromSeconds(11),
+                maximumNotificationCount: MaximumNotificationCount.FromCount(5));
+
+            cfg.Dispatcher = Application.Current.Dispatcher;
+        });
 
         public MainWindow()
         {
@@ -62,6 +82,7 @@ namespace OpenPomodoro
 
 
         }
+
         #region Property TextTimePassed
         private String _textTimePassed;
         public String TextTimePassed
@@ -211,7 +232,7 @@ namespace OpenPomodoro
 
         private void SetWindowState(int state)
         {
-            CleanMenu();
+            CleanMenu(); 
 
             previouWindowState = currentWindowState;
             currentWindowState = state;
@@ -261,6 +282,7 @@ namespace OpenPomodoro
                     workTimer.Start();
                     menuCancelProgres.Visibility = Visibility.Visible;
                     menuForceCompleteProgres.Visibility = Visibility.Visible;
+                    TryShowPauseAdvice();
                     break;
 
                 case WStates.FINISHED_PAUSE:
@@ -362,5 +384,35 @@ namespace OpenPomodoro
 
             ChartGeneratior.ChartHelper.ShowChart(chartData);
         }
+
+        private void TryShowPauseAdvice()
+        {
+            try
+            {
+                if (SettingsSingleton.getInstance().shouldDisplayPauseAdvices())
+                {
+                    if (File.Exists("DefaultPauseAdvices.txt"))
+                    {
+                        var lines = File.ReadAllLines("DefaultPauseAdvices.txt");
+                        if (lines != null && lines.Length > 0)
+                        {
+                            lines.Where(x => x.Length > 0).ToList()
+                                .ForEach(x => DBSingleton.getInstance().InsertAdvice(x));
+                        }
+
+                        File.WriteAllText("DefaultPauseAdvices.txt", "");
+                    }
+
+                    string randomAdvice = DBSingleton.getInstance().GetAdvice();
+
+                    notifier.ShowSuccess($"Pause suggestion: '{randomAdvice}'"); //MessageBox.Show(randomAdvice);
+                }
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show($"Error on TryShowPauseAdvice: {e.Message}");
+            }
+        }
+
     }
 }

@@ -42,7 +42,7 @@ namespace PomodoroDatabase
         {
             DatabaseLink.Execute("update Pomodoro set status='" + CANCELED + "', enddate = DATETIME('now') where enddate is null;");
             DatabaseLink.Execute("insert into Pomodoro (startdate) values ( DATETIME('now'));");
-       }
+        }
 
         public Tuple<string, string> GetChartData(DateTime date)
         {
@@ -53,8 +53,8 @@ namespace PomodoroDatabase
             while (myDate.Month == date.Month)
             {
                 dates.Append(dates.Length == 0 ? ("'" + myDate.ToString("MMM dd") + "'") : (",'" + myDate.ToString("MMM dd") + "'"));
-                counts.Append(counts.Length == 0 ? ("'" + GetPmodoroCount(myDate) + "'"): (",'" + GetPmodoroCount(myDate) + "'"));
-               
+                counts.Append(counts.Length == 0 ? ("'" + GetPmodoroCount(myDate) + "'") : (",'" + GetPmodoroCount(myDate) + "'"));
+
                 myDate = myDate.AddDays(1);
             }
 
@@ -83,11 +83,54 @@ namespace PomodoroDatabase
         {
             var db = new SQLiteConnection(dbFileName);
             db.CreateTable<Pomodoro>();
+            db.CreateTable<PauseAdvice>();
             db.Close();
         }
 
+        public void InsertAdvice(string advice)
+        {
+            var safeAdvice = advice.Replace("'", "*");
 
+            try
+            {
+                DatabaseLink.Execute($@"insert into PauseAdvice (content, probability) values ('{safeAdvice}','10');");
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
 
+        }
+
+        public string GetAdvice()
+        {
+            try
+            {
+                string s = "SELECT * FROM PauseAdvice ORDER BY lastseen LIMIT 5";
+                List<PauseAdvice> bList = new List<PauseAdvice>();
+                var top5 = DatabaseLink.Query<PauseAdvice>(s);
+
+                top5.ForEach(x =>
+                {
+                    int i = 0;
+                    while (++i < x.Probability)
+                    {
+                        bList.Add(x);
+                    }
+                });
+
+                var randomAdvice = bList.ElementAt((new Random()).Next(0, bList.Count - 1));
+
+                var u = "update pauseadvice set lastseen = DATETIME('now') where id = " + randomAdvice.id;
+                DatabaseLink.Execute(u);
+
+                return randomAdvice.Content;
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
+        }
     }
 
 }
