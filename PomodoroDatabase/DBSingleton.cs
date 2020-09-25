@@ -74,11 +74,6 @@ namespace PomodoroDatabase
             DatabaseLink.Execute("update Pomodoro set status='" + COMPLETE + "', enddate = DATETIME('now') where enddate is null;");
         }
 
-        public List<Pomodoro> GetPomodoros(string status)
-        {
-            throw new NotImplementedException("make GetPomodoros...");
-        }
-
         public void CreateDB()
         {
             var db = new SQLiteConnection(dbFileName);
@@ -93,13 +88,15 @@ namespace PomodoroDatabase
 
             try
             {
-                DatabaseLink.Execute($@"insert into PauseAdvice (content, probability) values ('{safeAdvice}','10');");
+                if ( DatabaseLink.Query<Pomodoro>($"select id from pauseadvice where content = '{safeAdvice}';").Count() == 0)
+                {
+                    DatabaseLink.Execute($"insert into PauseAdvice (content, probability) values ('{safeAdvice}','10');");
+                }
             }
             catch (Exception e)
             {
                 throw e;
             }
-
         }
 
         public string GetAdvice()

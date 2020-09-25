@@ -399,7 +399,6 @@ namespace OpenPomodoro
                             lines.Where(x => x.Length > 0).ToList()
                                 .ForEach(x => DBSingleton.getInstance().InsertAdvice(x));
                         }
-
                         File.WriteAllText("DefaultPauseAdvices.txt", "");
                     }
 
