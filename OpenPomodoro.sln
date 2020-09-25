@@ -1,13 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26403.7
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29709.97
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenPomodoro", "OpenPomodoro\OpenPomodoro.csproj", "{83112B44-3F46-4BA4-834B-B18B52B6F518}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PomodoroDatabase", "PomodoroDatabase\PomodoroDatabase.csproj", "{06FCA290-EF46-4660-8BC9-AAE5E55C7319}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChartGeneratior", "ChartGeneratior\ChartGeneratior.csproj", "{A70DF78E-C589-4684-B097-375AEDE72EE3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChartGenerator", "ChartGeneratior\ChartGenerator.csproj", "{A70DF78E-C589-4684-B097-375AEDE72EE3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZCaller", "ZCaller\ZCaller.csproj", "{92CE607C-21EA-4BE9-B4AB-71552C2DDCC9}"
 EndProject

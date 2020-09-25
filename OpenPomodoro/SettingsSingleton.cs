@@ -69,6 +69,11 @@ namespace OpenPomodoro
             return settingsHolder.DurationWork;
         }
 
+        public bool shouldDisplayPauseAdvices()
+        {
+            return settingsHolder.DisplayPauseAdvices;
+        }
+
         public int getSecondsUntilDesperateAlert()
         {
             return settingsHolder.SecondsUntilDesperateAlert;
@@ -87,5 +92,7 @@ namespace OpenPomodoro
         public int DurationWork { get; set; }
 
         public int SecondsUntilDesperateAlert { get; set; }
+
+        public bool DisplayPauseAdvices { get; set; }
     }
 }

@@ -23,6 +23,8 @@
         <Label Content="Seconds until 'desperate' alert" Margin="0,0,0,0" />
         <TextBox Width="200" HorizontalAlignment="Left" Text="{Binding SettingsHolder.SecondsUntilDesperateAlert}"/>
 
+        <CheckBox Margin="0, 10, 0, 0" Content="Show pause advices?" IsChecked="{Binding SettingsHolder.DisplayPauseAdvices}"/>
+
         <Button Content="Save settings" Margin="0,50,0,0" Command="{Binding DoSaveSettings}" Width="150" HorizontalAlignment="Left" />
 
     </StackPanel>
