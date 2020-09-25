@@ -377,6 +377,11 @@ namespace OpenPomodoro
             this.Topmost = true;
         }
 
+        private void MenuExit_Click(object sender, RoutedEventArgs e)
+        {
+            System.Diagnostics.Process.GetCurrentProcess().Kill();
+        }
+
         private void MenuChart_Click(object sender, RoutedEventArgs e)
         {
 
