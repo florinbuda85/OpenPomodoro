@@ -390,6 +390,16 @@ namespace OpenPomodoro
             ChartGeneratior.ChartHelper.ShowChart(chartData);
         }
 
+        private void MenuPauseAdvices_Click(object sender, RoutedEventArgs e)
+        {
+            this.Topmost = false;
+
+            PauseAdvices view = new PauseAdvices();
+            view.ShowDialog();
+
+            this.Topmost = true;
+        }
+
         private void TryShowPauseAdvice()
         {
             try
@@ -407,7 +417,7 @@ namespace OpenPomodoro
                         File.WriteAllText("DefaultPauseAdvices.txt", "");
                     }
 
-                    string randomAdvice = DBSingleton.getInstance().GetAdvice();
+                    string randomAdvice = DBSingleton.getInstance().GetRandomAdvice();
 
                     notifier.ShowSuccess($"Pause suggestion: '{randomAdvice}'"); //MessageBox.Show(randomAdvice);
                 }

@@ -88,7 +88,7 @@ namespace PomodoroDatabase
 
             try
             {
-                if ( DatabaseLink.Query<Pomodoro>($"select id from pauseadvice where content = '{safeAdvice}';").Count() == 0)
+                if (DatabaseLink.Query<Pomodoro>($"select id from pauseadvice where content = '{safeAdvice}';").Count() == 0)
                 {
                     DatabaseLink.Execute($"insert into PauseAdvice (content, probability) values ('{safeAdvice}','10');");
                 }
@@ -99,7 +99,33 @@ namespace PomodoroDatabase
             }
         }
 
-        public string GetAdvice()
+        public List<PauseAdvice> GetAllAdvices()
+        {
+            try
+            {
+                string s = "SELECT * FROM PauseAdvice ORDER BY lastseen";
+                return DatabaseLink.Query<PauseAdvice>(s);
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
+        }
+
+        public void DeleteAdvice(int id)
+        {
+            try
+            {
+                var u = "delete from pauseadvice where id = " + id;
+                DatabaseLink.Execute(u);
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
+        }
+
+        public string GetRandomAdvice()
         {
             try
             {
@@ -127,6 +153,12 @@ namespace PomodoroDatabase
             {
                 throw e;
             }
+        }
+
+        public void ResetAdviceViews()
+        {
+            var u = "update pauseadvice set probability = 10, lastseen = DATETIME('now'); ";
+            DatabaseLink.Execute(u);
         }
     }
 

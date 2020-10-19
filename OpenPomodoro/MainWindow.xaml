@@ -55,6 +55,7 @@
             <Separator />
             <MenuItem Header="View Chart" Name="menuChart" Click="MenuChart_Click" />
             <MenuItem Header="Settings.." Name="menuSettings" Click="MenuSettings_Click" />
+            <MenuItem Header="Pause advices.." Name="menuPauseAdvices" Click="MenuPauseAdvices_Click" />
             <Separator />
             <MenuItem Header="EXIT" Name="menuExit" Click="MenuExit_Click" />
         </ContextMenu>
