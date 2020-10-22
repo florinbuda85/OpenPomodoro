@@ -24,18 +24,20 @@
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
+        <Button  Grid.Row="0" Width="90"
+                 Grid.Column="1" Command="{Binding DoSave}" Content="Save" Background="#FF4DCF10"   />
+
         <TextBox x:Name="Input" 
                  Grid.Row="0" 
                  Grid.Column="0" 
                  Text="{Binding NewAdvice, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  
-                 FontSize="40" 
+                 FontSize="18" 
                  Background="AliceBlue"
                  Margin="3">
             <TextBox.InputBindings>
                 <KeyBinding Key="Enter" Command="{Binding DoSave}" />
             </TextBox.InputBindings>
         </TextBox>
-
 
         <DataGrid  
             ItemsSource="{Binding TheAdviceList}" 
