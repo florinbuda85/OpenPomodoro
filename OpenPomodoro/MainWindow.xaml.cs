@@ -16,6 +16,7 @@ using ToastNotifications;
 using ToastNotifications.Lifetime;
 using ToastNotifications.Position;
 using ToastNotifications.Messages;
+using System.Runtime.InteropServices;
 
 namespace OpenPomodoro
 {
@@ -25,6 +26,34 @@ namespace OpenPomodoro
     /// </summary>
     public partial class MainWindow : MetroWindow, INotifyPropertyChanged
     {
+        #region mouse pos
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetCursorPos(ref Win32Point pt);
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct Win32Point
+        {
+            public Int32 X;
+            public Int32 Y;
+        };
+
+        #endregion
+
+        #region send keys
+        [DllImport("user32.dll")]
+        private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
+
+
+        #endregion
+
+
         int currentWindowState;
         int previouWindowState;
 
@@ -152,8 +181,6 @@ namespace OpenPomodoro
         }
         #endregion
 
-
-
         private void OnAtentionTimerdEvent(object source, ElapsedEventArgs e)
         {
             if (++deadTimeSeconds >= SettingsSingleton.getInstance().getSecondsUntilDesperateAlert())
@@ -186,8 +213,43 @@ namespace OpenPomodoro
             }
         }
 
+        public static Point GetMousePosition()
+        {
+            var w32Mouse = new Win32Point();
+            GetCursorPos(ref w32Mouse);
+
+            return new Point(w32Mouse.X, w32Mouse.Y);
+        }
+
+        double mouseX = 0;
+        double mouseY = 0;
+        DateTime changeTime = DateTime.Now;
+
+
         private void OnWorkTimerdEvent(object source, ElapsedEventArgs e)
         {
+
+            var v = GetMousePosition();
+
+            if (v.X != mouseX || v.Y != mouseY)
+            {
+                mouseY = v.Y;
+                mouseX = v.X;
+                changeTime = DateTime.Now;
+            }
+
+            double elapsedSecondsSinceLastMove = (DateTime.Now - changeTime).TotalSeconds;
+            if (elapsedSecondsSinceLastMove > 60)
+            {
+                //System.Windows.Forms.SendKeys.SendWait("^({ESC}D)");
+                //System.Windows.Forms.SendKeys.Flush();
+                keybd_event(0x5B, 0, 0, 0);
+                keybd_event(0x4D, 0, 0, 0);
+                keybd_event(0x5B, 0, 0x2, 0);
+                changeTime = DateTime.Now;
+            }
+
+
 
             double elapsedSeconds = (DateTime.Now - startTime).TotalSeconds;
 
@@ -232,7 +294,7 @@ namespace OpenPomodoro
 
         private void SetWindowState(int state)
         {
-            CleanMenu(); 
+            CleanMenu();
 
             previouWindowState = currentWindowState;
             currentWindowState = state;
