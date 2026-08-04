@@ -104,12 +104,22 @@ namespace OpenPomodoro
             this.SetWindowState(WStates.DEFAULT);
 
             Pomodoros = new ObservableCollection<string>();
+            LoadCompletedPomodorosForToday();
 
 
             // start working
             this.SetWindowState(WStates.WORKING);
 
 
+        }
+
+        private void LoadCompletedPomodorosForToday()
+        {
+            int completedToday = DBSingleton.getInstance().GetPomodoroCount(DateTime.Today);
+            for (int i = 0; i < completedToday; i++)
+            {
+                Pomodoros.Add(WORK_COMPLETED);
+            }
         }
 
         #region Property TextTimePassed
@@ -239,7 +249,7 @@ namespace OpenPomodoro
             }
 
             double elapsedSecondsSinceLastMove = (DateTime.Now - changeTime).TotalSeconds;
-            if (elapsedSecondsSinceLastMove > 60)
+            if (elapsedSecondsSinceLastMove > 160)
             {
                 //System.Windows.Forms.SendKeys.SendWait("^({ESC}D)");
                 //System.Windows.Forms.SendKeys.Flush();
@@ -316,7 +326,15 @@ namespace OpenPomodoro
                     workTimer.Start();
                     menuCancelProgres.Visibility = Visibility.Visible;
                     menuForceCompleteProgres.Visibility = Visibility.Visible;
-                    PomodoroDatabase.DBSingleton.getInstance().StartPomodoro();
+                    int? secondsSincePauseEnded = DBSingleton.getInstance().StartPomodoro();
+                    if (secondsSincePauseEnded.HasValue)
+                    {
+                        int minutesSincePauseEnded = (int)Math.Round(
+                            secondsSincePauseEnded.Value / 60.0,
+                            MidpointRounding.AwayFromZero);
+                        string minuteLabel = minutesSincePauseEnded == 1 ? "minute" : "minutes";
+                        notifier.ShowSuccess($"{minutesSincePauseEnded} {minuteLabel} passed between the end of the pause and the start of work.");
+                    }
                     break;
 
                 case WStates.FINISHED_WORK:
@@ -349,7 +367,9 @@ namespace OpenPomodoro
 
                 case WStates.FINISHED_PAUSE:
                     Pomodoros.Remove(PAUSE_IN_PROGRES);
-                    if (previouWindowState == WStates.PAUSING_LONG)
+                    bool completedLongPause = previouWindowState == WStates.PAUSING_LONG;
+                    DBSingleton.getInstance().RecordCompletedPause(completedLongPause);
+                    if (completedLongPause)
                     {
                         Pomodoros.Add(PAUSE_COMPLETED);
                         Pomodoros.Add(PAUSE_COMPLETED);
