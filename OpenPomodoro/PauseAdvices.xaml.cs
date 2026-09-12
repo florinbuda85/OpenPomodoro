@@ -13,6 +13,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using OpenPomodoro.ViewModel;
 
 namespace OpenPomodoro
 {
@@ -24,6 +25,12 @@ namespace OpenPomodoro
         public PauseAdvices()
         {
             InitializeComponent();
+            Loaded += PauseAdvices_Loaded;
+        }
+
+        private void PauseAdvices_Loaded(object sender, RoutedEventArgs e)
+        {
+            (DataContext as AdvicesViewModel)?.Refresh();
         }
 
         public event PropertyChangedEventHandler PropertyChanged; // TODO: WTF??
@@ -35,6 +42,7 @@ namespace OpenPomodoro
             {
                 ((DataGrid)sender).Columns.Where(x => x.Header.ToString() == "Probability").FirstOrDefault().Visibility = Visibility.Collapsed;
                 ((DataGrid)sender).Columns.Where(x => x.Header.ToString() == "LastSeen").FirstOrDefault().Visibility = Visibility.Collapsed;
+                ((DataGrid)sender).Columns.Where(x => x.Header.ToString() == "SortOrder").FirstOrDefault().Visibility = Visibility.Collapsed;
 
                 ((DataGrid)sender).Columns.Where(x => x.Header.ToString() == "Content").FirstOrDefault().IsReadOnly = true;
                 ((DataGrid)sender).Columns.Where(x => x.Header.ToString() == "Content").FirstOrDefault().Width = 900;

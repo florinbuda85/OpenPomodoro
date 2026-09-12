@@ -7,6 +7,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Timers;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -16,7 +17,11 @@ using ToastNotifications;
 using ToastNotifications.Lifetime;
 using ToastNotifications.Position;
 using ToastNotifications.Messages;
-using System.Runtime.InteropServices;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using NAudio.CoreAudioApi;
+using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 
 namespace OpenPomodoro
 {
@@ -26,43 +31,22 @@ namespace OpenPomodoro
     /// </summary>
     public partial class MainWindow : MetroWindow, INotifyPropertyChanged
     {
-        #region mouse pos
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool GetCursorPos(ref Win32Point pt);
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct Win32Point
-        {
-            public Int32 X;
-            public Int32 Y;
-        };
-
-        #endregion
-
-        #region send keys
-        [DllImport("user32.dll")]
-        private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
-
-        [DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [DllImport("user32.dll")]
-        static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
-
-
-        #endregion
-
-
         int currentWindowState;
         int previouWindowState;
 
-        Timer getAttentionTimer;
-        Timer workTimer;
+        Timer stateTimer;
 
-        DateTime startTime;
+        DateTime stateStartedAt;
+        DateTime lastTickMinute = DateTime.MinValue;
+        bool desperateAlertStarted;
         int targetSeconds = 0;
-        int deadTimeSeconds = 0; //todo: get rid of this..
+
+        WasapiOut tickerAudioOutput;
+        MixingSampleProvider tickerAudioMixer;
+        readonly List<AudioFileReader> tickerReaders = new List<AudioFileReader>();
+        readonly Random soundRandom = new Random();
+        WasapiOut completionAudioOutput;
+        AudioFileReader completionAudioReader;
 
         const string WORK_INPROGRESS = "img/tomato-icon-gray.png";
         const string WORK_COMPLETED = "img/tomato-icon.png";
@@ -89,36 +73,61 @@ namespace OpenPomodoro
         {
             InitializeComponent();
 
-            getAttentionTimer = new Timer();
-            getAttentionTimer.Interval = 200;
-            //getAttentionTimer.Start();
-            getAttentionTimer.Elapsed += new ElapsedEventHandler(OnAtentionTimerdEvent);
-
-
             this.DataContext = this;
 
-            workTimer = new Timer();
-            workTimer.Interval = 500;
-            workTimer.Elapsed += new ElapsedEventHandler(OnWorkTimerdEvent);
+            stateTimer = new Timer();
+            stateTimer.Interval = 900;
+            stateTimer.Elapsed += new ElapsedEventHandler(OnStateTimerElapsed);
 
             this.SetWindowState(WStates.DEFAULT);
 
             Pomodoros = new ObservableCollection<string>();
-            LoadCompletedPomodorosForToday();
+            LoadCompletedSessionsForToday();
 
 
             // start working
             this.SetWindowState(WStates.WORKING);
+            this.Loaded += MainWindow_Loaded;
 
 
         }
 
-        private void LoadCompletedPomodorosForToday()
+        private void LoadCompletedSessionsForToday()
         {
-            int completedToday = DBSingleton.getInstance().GetPomodoroCount(DateTime.Today);
-            for (int i = 0; i < completedToday; i++)
+            var completedPomodoros = DBSingleton.getInstance().GetCompletedPomodoros(DateTime.Today)
+                .Select(pomodoro => new
+                {
+                    StartDate = pomodoro.StartDate,
+                    IsPause = false,
+                    IsLongPause = false
+                });
+            var completedPauses = DBSingleton.getInstance().GetCompletedPauses(DateTime.Today)
+                .Select(pause => new
+                {
+                    StartDate = pause.StartDate == DateTime.MinValue ? pause.EndDate : pause.StartDate,
+                    IsPause = true,
+                    IsLongPause = pause.IsLong
+                });
+
+            foreach (var session in completedPomodoros.Concat(completedPauses).OrderBy(session => session.StartDate))
             {
-                Pomodoros.Add(WORK_COMPLETED);
+                if (session.IsPause)
+                {
+                    AddCompletedPauseIcons(session.IsLongPause);
+                }
+                else
+                {
+                    Pomodoros.Add(WORK_COMPLETED);
+                }
+            }
+        }
+
+        private void AddCompletedPauseIcons(bool isLongPause)
+        {
+            int iconCount = isLongPause ? 3 : 1;
+            for (int i = 0; i < iconCount; i++)
+            {
+                Pomodoros.Add(PAUSE_COMPLETED);
             }
         }
 
@@ -191,86 +200,55 @@ namespace OpenPomodoro
         }
         #endregion
 
-        private void OnAtentionTimerdEvent(object source, ElapsedEventArgs e)
+        private void OnStateTimerElapsed(object source, ElapsedEventArgs e)
         {
-            if (++deadTimeSeconds >= SettingsSingleton.getInstance().getSecondsUntilDesperateAlert())
+            DateTime currentTime = DateTime.Now;
+            int elapsedSeconds = Math.Max(0, (int)(currentTime - stateStartedAt).TotalSeconds);
+            int state = currentWindowState;
+
+            DateTime currentMinute = new DateTime(
+                currentTime.Year,
+                currentTime.Month,
+                currentTime.Day,
+                currentTime.Hour,
+                currentTime.Minute,
+                0);
+            if (currentTime.Second == 0
+                && currentMinute != lastTickMinute
+                && SettingsSingleton.getInstance().isTickerEnabled())
             {
-                this.Dispatcher.Invoke(() =>
+                lastTickMinute = currentMinute;
+
+                if (state == WStates.WORKING)
                 {
-                    if (deadTimeSeconds % 2 == 0)
-                    {
-                        this.Icon = new BitmapImage(new Uri("pack://application:,,,/OpenPomodoro;component/img/attention-icon.png"));
-                    }
-                    else
-                    {
-                        this.Icon = new BitmapImage(new Uri("pack://application:,,,/OpenPomodoro;component/img/tomato-icon.png"));
-                    }
-
-                    if (deadTimeSeconds % 7 == 0)
-                    {
-                        this.Background = new SolidColorBrush(Color.FromArgb(255, 0, 255, 0));
-                    }
-                    else
-                    {
-                        this.Background = new SolidColorBrush(Color.FromArgb(255, 233, 236, 255));
-                    }
-
-                    if (deadTimeSeconds % 40 == 0)
-                    {
-                        System.Media.SystemSounds.Beep.Play();
-                    }
-                });
+                    PlayTickerSound("tick_pomodoro");
+                }
+                else if (state == WStates.PAUSING || state == WStates.PAUSING_LONG)
+                {
+                    PlayTickerSound("tick_pause");
+                }
+                else if (state == WStates.ALERTING)
+                {
+                    PlayTickerSound("tick_alert");
+                }
             }
-        }
 
-        public static Point GetMousePosition()
-        {
-            var w32Mouse = new Win32Point();
-            GetCursorPos(ref w32Mouse);
-
-            return new Point(w32Mouse.X, w32Mouse.Y);
-        }
-
-        double mouseX = 0;
-        double mouseY = 0;
-        DateTime changeTime = DateTime.Now;
-
-
-        private void OnWorkTimerdEvent(object source, ElapsedEventArgs e)
-        {
-
-            var v = GetMousePosition();
-
-            if (v.X != mouseX || v.Y != mouseY)
+            if (state == WStates.ALERTING)
             {
-                mouseY = v.Y;
-                mouseX = v.X;
-                changeTime = DateTime.Now;
+                UpdateAlert(elapsedSeconds);
+                return;
             }
 
-            double elapsedSecondsSinceLastMove = (DateTime.Now - changeTime).TotalSeconds;
-            if (elapsedSecondsSinceLastMove > 160)
+            if (state != WStates.WORKING && state != WStates.PAUSING && state != WStates.PAUSING_LONG)
             {
-                //System.Windows.Forms.SendKeys.SendWait("^({ESC}D)");
-                //System.Windows.Forms.SendKeys.Flush();
-                keybd_event(0x5B, 0, 0, 0);
-                keybd_event(0x4D, 0, 0, 0);
-                keybd_event(0x5B, 0, 0x2, 0);
-                changeTime = DateTime.Now;
+                return;
             }
-
-
-
-            double elapsedSeconds = (DateTime.Now - startTime).TotalSeconds;
-
 
             TimeSpan timePassed = TimeSpan.FromSeconds(elapsedSeconds);
-            TimeSpan timeLeft = TimeSpan.FromSeconds(targetSeconds - elapsedSeconds);
-
+            TimeSpan timeLeft = TimeSpan.FromSeconds(Math.Max(0, targetSeconds - elapsedSeconds));
 
             this.Dispatcher.Invoke(() =>
             {
-
                 if (elapsedSeconds >= targetSeconds)
                 {
                     if (currentWindowState == WStates.WORKING)
@@ -286,20 +264,78 @@ namespace OpenPomodoro
                 TextTimePassed = timePassed.ToString(@"mm\:ss");
                 TextTimeLeft = timeLeft.ToString(@"mm\:ss");
 
-                mainBar.Value = (elapsedSeconds / targetSeconds) * 100;
+                mainBar.Value = ((double)elapsedSeconds / targetSeconds) * 100;
+            });
+        }
 
+        private void UpdateAlert(int attentionSeconds)
+        {
+            int desperateAlertThreshold = SettingsSingleton.getInstance().getSecondsUntilDesperateAlert();
+            if (attentionSeconds < desperateAlertThreshold)
+            {
+                return;
+            }
+
+            this.Dispatcher.Invoke(() =>
+            {
+                if (!desperateAlertStarted)
+                {
+                    desperateAlertStarted = true;
+                    MinimizeAllWindows();
+                }
+
+                this.Icon = new BitmapImage(new Uri(
+                    attentionSeconds % 2 == 0
+                        ? "pack://application:,,,/OpenPomodoro;component/img/attention-icon.png"
+                        : "pack://application:,,,/OpenPomodoro;component/img/tomato-icon.png"));
+
+                this.Background = new SolidColorBrush(
+                    attentionSeconds % 10 == 0
+                        ? Color.FromArgb(255, 0, 255, 0)
+                        : Color.FromArgb(255, 233, 236, 255));
             });
         }
 
 
         private void ClearAlert()
         {
-            getAttentionTimer.Stop();
             this.Dispatcher.Invoke(() =>
             {
                 this.Icon = new BitmapImage(new Uri("pack://application:,,,/OpenPomodoro;component/img/tomato-icon.png"));
                 this.Background = new SolidColorBrush(Color.FromArgb(255, 233, 236, 255));
             });
+        }
+
+        private static void MinimizeAllWindows()
+        {
+            Type shellType = Type.GetTypeFromProgID("Shell.Application");
+            if (shellType == null)
+            {
+                return;
+            }
+
+            object shell = null;
+            try
+            {
+                shell = Activator.CreateInstance(shellType);
+                shellType.InvokeMember(
+                    "MinimizeAll",
+                    BindingFlags.InvokeMethod,
+                    null,
+                    shell,
+                    null);
+            }
+            catch (COMException)
+            {
+                // Alerting must continue even if Windows Shell cannot minimize the desktop.
+            }
+            finally
+            {
+                if (shell != null && Marshal.IsComObject(shell))
+                {
+                    Marshal.FinalReleaseComObject(shell);
+                }
+            }
         }
 
         private void SetWindowState(int state)
@@ -312,6 +348,7 @@ namespace OpenPomodoro
             switch (state)
             {
                 case WStates.DEFAULT:
+                    stateTimer.Stop();
                     ClearAlert();
                     mainBar.Value = 0;
                     menuStartWork.Visibility = Visibility.Visible;
@@ -322,34 +359,26 @@ namespace OpenPomodoro
                     ChangeTheme("red");
                     targetSeconds = SettingsSingleton.getInstance().getDurationWork(); ;
                     Pomodoros.Add(WORK_INPROGRESS);
-                    startTime = DateTime.Now;
-                    workTimer.Start();
                     menuCancelProgres.Visibility = Visibility.Visible;
                     menuForceCompleteProgres.Visibility = Visibility.Visible;
-                    int? secondsSincePauseEnded = DBSingleton.getInstance().StartPomodoro();
-                    if (secondsSincePauseEnded.HasValue)
-                    {
-                        int minutesSincePauseEnded = (int)Math.Round(
-                            secondsSincePauseEnded.Value / 60.0,
-                            MidpointRounding.AwayFromZero);
-                        string minuteLabel = minutesSincePauseEnded == 1 ? "minute" : "minutes";
-                        notifier.ShowSuccess($"{minutesSincePauseEnded} {minuteLabel} passed between the end of the pause and the start of work.");
-                    }
+                    StartWorkSession();
                     break;
 
                 case WStates.FINISHED_WORK:
                     Pomodoros.Remove(WORK_INPROGRESS);
                     Pomodoros.Add(WORK_COMPLETED);
-                    SetWindowState(WStates.STOP);
                     PomodoroDatabase.DBSingleton.getInstance().CompletePomodoro();
+                    PlayCompletionSound("pomodoro_end");
+                    SetWindowState(WStates.STOP);
                     break;
 
                 case WStates.STOP: // = CANCEL
-                    workTimer.Stop();
+                    stateTimer.Stop();
+                    StopTickerAudioSession();
+                    DBSingleton.getInstance().CancelPomodoro();
+                    DBSingleton.getInstance().CancelPause();
                     Pomodoros.Remove(WORK_INPROGRESS);
                     Pomodoros.Remove(PAUSE_IN_PROGRES);
-                    System.Media.SystemSounds.Asterisk.Play();
-                    System.Media.SystemSounds.Asterisk.Play();
                     SetWindowState(WStates.ALERTING);
                     break;
 
@@ -358,8 +387,8 @@ namespace OpenPomodoro
                     ClearAlert();
                     ChangeTheme("green");
                     Pomodoros.Add(PAUSE_IN_PROGRES);
-                    startTime = DateTime.Now;
-                    workTimer.Start();
+                    DBSingleton.getInstance().StartPause();
+                    StartStateTimer();
                     menuCancelProgres.Visibility = Visibility.Visible;
                     menuForceCompleteProgres.Visibility = Visibility.Visible;
                     TryShowPauseAdvice();
@@ -369,16 +398,8 @@ namespace OpenPomodoro
                     Pomodoros.Remove(PAUSE_IN_PROGRES);
                     bool completedLongPause = previouWindowState == WStates.PAUSING_LONG;
                     DBSingleton.getInstance().RecordCompletedPause(completedLongPause);
-                    if (completedLongPause)
-                    {
-                        Pomodoros.Add(PAUSE_COMPLETED);
-                        Pomodoros.Add(PAUSE_COMPLETED);
-                        Pomodoros.Add(PAUSE_COMPLETED);
-                    }
-                    else
-                    {
-                        Pomodoros.Add(PAUSE_COMPLETED);
-                    }
+                    AddCompletedPauseIcons(completedLongPause);
+                    PlayCompletionSound("pause_end");
                     SetWindowState(WStates.STOP);
                     break;
 
@@ -389,12 +410,220 @@ namespace OpenPomodoro
                     menuStartLongPause.Visibility = Visibility.Visible;
                     menuStartWork.Visibility = Visibility.Visible;
 
-                    deadTimeSeconds = 0;
-                    getAttentionTimer.Start();
+                    StartStateTimer();
 
                     break;
 
             }
+        }
+
+        private void ShowSuccessWhenWindowIsReady(string message)
+        {
+            if (IsLoaded)
+            {
+                notifier.ShowSuccess(message);
+                return;
+            }
+
+            Dispatcher.BeginInvoke(
+                new Action(() => notifier.ShowSuccess(message)),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private void PlayCompletionSound(string soundFolder)
+        {
+            string[] soundFiles = GetSoundFiles(soundFolder);
+
+            if (soundFiles.Length == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                CloseCompletionAudio();
+
+                completionAudioReader = new AudioFileReader(
+                    soundFiles[soundRandom.Next(soundFiles.Length)]);
+                completionAudioOutput = new WasapiOut(
+                    AudioClientShareMode.Shared,
+                    true,
+                    100);
+                completionAudioOutput.PlaybackStopped += CompletionAudioOutput_PlaybackStopped;
+                completionAudioOutput.Init(completionAudioReader);
+                completionAudioOutput.Play();
+            }
+            catch
+            {
+                CloseCompletionAudio();
+            }
+        }
+
+        private void CompletionAudioOutput_PlaybackStopped(object sender, StoppedEventArgs e)
+        {
+            Dispatcher.BeginInvoke(new Action(CloseCompletionAudio));
+        }
+
+        private void CloseCompletionAudio()
+        {
+            if (completionAudioOutput != null)
+            {
+                completionAudioOutput.PlaybackStopped -= CompletionAudioOutput_PlaybackStopped;
+                completionAudioOutput.Stop();
+                completionAudioOutput.Dispose();
+                completionAudioOutput = null;
+            }
+
+            completionAudioReader?.Dispose();
+            completionAudioReader = null;
+        }
+
+        private void PlayTickerSound(string soundFolder)
+        {
+            string[] soundFiles = GetSoundFiles(soundFolder);
+            if (soundFiles.Length == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                StartTickerAudioSession();
+                if (tickerAudioMixer == null)
+                {
+                    return;
+                }
+
+                tickerReaders.RemoveAll(reader =>
+                {
+                    if (reader.Position < reader.Length)
+                    {
+                        return false;
+                    }
+                    reader.Dispose();
+                    return true;
+                });
+
+                string tickerPath = soundFiles[soundRandom.Next(soundFiles.Length)];
+                AudioFileReader tickerReader = new AudioFileReader(tickerPath)
+                {
+                    Volume = SettingsSingleton.getInstance().getTickerVolume() / 100f
+                };
+                tickerReaders.Add(tickerReader);
+                tickerAudioMixer.AddMixerInput(ConvertToTickerMixerFormat(tickerReader));
+            }
+            catch
+            {
+                StopTickerAudioSession();
+            }
+        }
+
+        private static string[] GetSoundFiles(string soundFolder)
+        {
+            try
+            {
+                string folderPath = Path.Combine(@"D:\pers\sounds", soundFolder);
+                if (!Directory.Exists(folderPath))
+                {
+                    return new string[0];
+                }
+
+                return Directory.GetFiles(folderPath)
+                    .Where(path => Path.GetExtension(path)
+                        .Equals(".mp3", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+            }
+            catch
+            {
+                return new string[0];
+            }
+        }
+
+        private ISampleProvider ConvertToTickerMixerFormat(ISampleProvider input)
+        {
+            ISampleProvider convertedInput = input;
+
+            if (convertedInput.WaveFormat.Channels == 1)
+            {
+                convertedInput = new MonoToStereoSampleProvider(convertedInput);
+            }
+            else if (convertedInput.WaveFormat.Channels != tickerAudioMixer.WaveFormat.Channels)
+            {
+                throw new NotSupportedException(
+                    $"Audio with {convertedInput.WaveFormat.Channels} channels is not supported.");
+            }
+
+            if (convertedInput.WaveFormat.SampleRate != tickerAudioMixer.WaveFormat.SampleRate)
+            {
+                convertedInput = new WdlResamplingSampleProvider(
+                    convertedInput,
+                    tickerAudioMixer.WaveFormat.SampleRate);
+            }
+
+            return convertedInput;
+        }
+
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            this.Loaded -= MainWindow_Loaded;
+
+            if (!SettingsSingleton.getInstance().isTickerEnabled())
+            {
+                return;
+            }
+
+            await Task.Delay(750);
+
+            PlayTickerSound("tick_pomodoro");
+        }
+
+        private void StartWorkSession()
+        {
+            StartStateTimer();
+
+            int? secondsBetweenPomodoros = DBSingleton.getInstance().StartPomodoro();
+            if (secondsBetweenPomodoros.HasValue)
+            {
+                int minutesBetweenPomodoros = (int)Math.Round(
+                    secondsBetweenPomodoros.Value / 60.0,
+                    MidpointRounding.AwayFromZero);
+                string minuteLabel = minutesBetweenPomodoros == 1 ? "minute" : "minutes";
+                ShowSuccessWhenWindowIsReady($"{minutesBetweenPomodoros} {minuteLabel} from last finished pomodoro");
+            }
+        }
+
+        private void StartStateTimer()
+        {
+            stateStartedAt = DateTime.Now;
+            lastTickMinute = DateTime.MinValue;
+            desperateAlertStarted = false;
+            stateTimer.Start();
+        }
+
+        private void StartTickerAudioSession()
+        {
+            if (tickerAudioOutput != null)
+            {
+                return;
+            }
+
+            tickerAudioMixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2))
+            {
+                ReadFully = true
+            };
+            tickerAudioOutput = new WasapiOut(AudioClientShareMode.Shared, true, 100);
+            tickerAudioOutput.Init(tickerAudioMixer);
+            tickerAudioOutput.Play();
+        }
+
+        private void StopTickerAudioSession()
+        {
+            tickerAudioOutput?.Stop();
+            tickerAudioOutput?.Dispose();
+            tickerAudioOutput = null;
+            tickerAudioMixer = null;
+            tickerReaders.ForEach(reader => reader.Dispose());
+            tickerReaders.Clear();
         }
 
         private void ChangeTheme(string newTheme)
@@ -453,7 +682,11 @@ namespace OpenPomodoro
         {
             this.Topmost = false;
 
-            SettingsView view = new SettingsView();
+            SettingsView view = new SettingsView
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
             view.ShowDialog();
 
             this.Topmost = true;
@@ -476,7 +709,25 @@ namespace OpenPomodoro
         {
             this.Topmost = false;
 
-            PauseAdvices view = new PauseAdvices();
+            PauseAdvices view = new PauseAdvices
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            view.ShowDialog();
+
+            this.Topmost = true;
+        }
+
+        private void MenuAddPauseReminder_Click(object sender, RoutedEventArgs e)
+        {
+            this.Topmost = false;
+
+            AddPauseReminder view = new AddPauseReminder
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
             view.ShowDialog();
 
             this.Topmost = true;
@@ -499,9 +750,38 @@ namespace OpenPomodoro
                         File.WriteAllText("DefaultPauseAdvices.txt", "");
                     }
 
-                    string randomAdvice = DBSingleton.getInstance().GetRandomAdvice();
-
-                    notifier.ShowSuccess($"Pause suggestion: '{randomAdvice}'"); //MessageBox.Show(randomAdvice);
+                    PauseAdvice reminder = DBSingleton.getInstance().GetNextPauseReminder();
+                    if (reminder == null)
+                    {
+                        MessageBox.Show(
+                            this,
+                            "Add pause reminders or deactivate the setting.",
+                            "Pause reminders",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+                    else if (reminder.IsOnce)
+                    {
+                        ReminderDialog dialog = new ReminderDialog(
+                            reminder.Content,
+                            true)
+                        {
+                            Owner = this
+                        };
+                        dialog.ShowDialog();
+                        if (dialog.Accepted)
+                        {
+                            DBSingleton.getInstance().CompleteAdvice(reminder.id);
+                        }
+                    }
+                    else
+                    {
+                        ReminderDialog dialog = new ReminderDialog(reminder.Content, false)
+                        {
+                            Owner = this
+                        };
+                        dialog.ShowDialog();
+                    }
                 }
             }
             catch (Exception e)

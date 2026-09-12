@@ -9,11 +9,12 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>PomodoroDatabase</RootNamespace>
     <AssemblyName>PomodoroDatabase</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -77,6 +78,7 @@
   <ItemGroup>
     <Compile Include="DBSingleton.cs" />
     <Compile Include="PauseAdvice.cs" />
+    <Compile Include="CompletedPause.cs" />
     <Compile Include="Pomodoro.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

@@ -8,7 +8,7 @@
         mc:Ignorable="d"
         DataContext="{Binding SettingsVM, Source={StaticResource Locator}}"
         GlowBrush="{DynamicResource AccentColorBrush}" 
-        Title="SettingsView" Height="450" Width="259">
+        Title="SettingsView" Height="520" Width="300">
     <StackPanel Orientation="Vertical" Margin="20">
 
         <Label Content="Work session duration" Margin="0,0,0,0" />
@@ -23,9 +23,25 @@
         <Label Content="Seconds until 'desperate' alert" Margin="0,0,0,0" />
         <TextBox Width="200" HorizontalAlignment="Left" Text="{Binding SettingsHolder.SecondsUntilDesperateAlert}"/>
 
-        <CheckBox Margin="0, 10, 0, 0" Content="Show pause advices?" IsChecked="{Binding SettingsHolder.DisplayPauseAdvices}"/>
+        <CheckBox Margin="0, 10, 0, 0" Content="Show Pause Reminders?" IsChecked="{Binding SettingsHolder.DisplayPauseAdvices}"/>
 
-        <Button Content="Save settings" Margin="0,50,0,0" Command="{Binding DoSaveSettings}" Width="150" HorizontalAlignment="Left" />
+        <CheckBox Margin="0,10,0,0" Content="Ticker every minute" IsChecked="{Binding SettingsHolder.TickerEnabled}"/>
+
+        <Label Content="Ticker volume" Margin="0,5,0,0" />
+        <StackPanel Orientation="Horizontal">
+            <Slider Width="165"
+                    Minimum="0"
+                    Maximum="100"
+                    TickFrequency="5"
+                    IsSnapToTickEnabled="True"
+                    Value="{Binding SettingsHolder.TickerVolume, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBlock Width="35"
+                       Margin="8,0,0,0"
+                       VerticalAlignment="Center"
+                       Text="{Binding SettingsHolder.TickerVolume, StringFormat={}{0}%}" />
+        </StackPanel>
+
+        <Button Content="Save settings" Margin="0,25,0,0" Command="{Binding DoSaveSettings}" Width="150" HorizontalAlignment="Left" />
 
     </StackPanel>
 </Controls:MetroWindow>

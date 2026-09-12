@@ -14,15 +14,16 @@ namespace PomodoroDatabase
         readonly string dbFileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PomodoroDB.sqlite");
 
         SQLiteConnection DatabaseLink;
+        DateTime? currentPauseStartDate;
 
         private DBSingleton()
         {
-            if (!File.Exists(dbFileName))
-            {
-                CreateDB();
-            }
-
             DatabaseLink = new SQLiteConnection(dbFileName);
+            DatabaseLink.CreateTable<Pomodoro>();
+            DatabaseLink.CreateTable<PauseAdvice>();
+            DatabaseLink.CreateTable<CompletedPause>();
+            NormalizePauseReminderOrder();
+            CancelUnfinishedPomodoros(DateTime.Now);
         }
 
         private static DBSingleton _instance = null;
@@ -38,10 +39,45 @@ namespace PomodoroDatabase
 
         /****/
 
-        public void StartPomodoro()
+        public int? StartPomodoro()
         {
-            DatabaseLink.Execute("update Pomodoro set status='" + CANCELED + "', enddate = DATETIME('now') where enddate is null;");
-            DatabaseLink.Execute("insert into Pomodoro (startdate) values ( DATETIME('now'));");
+            DateTime now = DateTime.Now;
+            int? secondsBetweenPomodoros = GetSecondsSinceLastCompletedPomodoro(now);
+            CancelUnfinishedPomodoros(now);
+
+            // Insert only StartDate so EndDate remains NULL until the Pomodoro finishes.
+            // SQLite-net would otherwise persist DateTime.MinValue for the non-nullable
+            // EndDate property, making the completion update miss this row.
+            DatabaseLink.Execute("insert into Pomodoro (startdate) values (?);", now);
+            return secondsBetweenPomodoros;
+        }
+
+        public void CancelPomodoro()
+        {
+            CancelUnfinishedPomodoros(DateTime.Now);
+        }
+
+        private void CancelUnfinishedPomodoros(DateTime canceledAt)
+        {
+            DatabaseLink.Execute(
+                "update Pomodoro set status = ?, enddate = ? where status is null;",
+                CANCELED,
+                canceledAt);
+        }
+
+        private int? GetSecondsSinceLastCompletedPomodoro(DateTime nextPomodoroStartDate)
+        {
+            Pomodoro previousPomodoro = DatabaseLink.Table<Pomodoro>()
+                .Where(p => p.Status == COMPLETE && p.EndDate <= nextPomodoroStartDate)
+                .OrderByDescending(p => p.EndDate)
+                .FirstOrDefault();
+
+            if (previousPomodoro == null)
+            {
+                return null;
+            }
+
+            return Math.Max(0, (int)(nextPomodoroStartDate - previousPomodoro.EndDate).TotalSeconds);
         }
 
         public Tuple<string, string> GetChartData(DateTime date)
@@ -53,7 +89,7 @@ namespace PomodoroDatabase
             while (myDate.Month == date.Month)
             {
                 dates.Append(dates.Length == 0 ? ("'" + myDate.ToString("MMM dd") + "'") : (",'" + myDate.ToString("MMM dd") + "'"));
-                counts.Append(counts.Length == 0 ? ("'" + GetPmodoroCount(myDate) + "'") : (",'" + GetPmodoroCount(myDate) + "'"));
+                counts.Append(counts.Length == 0 ? ("'" + GetPomodoroCount(myDate) + "'") : (",'" + GetPomodoroCount(myDate) + "'"));
 
                 myDate = myDate.AddDays(1);
             }
@@ -61,17 +97,69 @@ namespace PomodoroDatabase
             return new Tuple<string, string>(dates.ToString(), counts.ToString());
         }
 
-        public int GetPmodoroCount(DateTime d)
+        public int GetPomodoroCount(DateTime date)
         {
-            string s = "select * from pomodoro where status = 'COMPLETE' and strftime('%Y-%m-%d', startdate) = '" + d.ToString("yyyy-MM-dd") + "';";
+            DateTime startOfDay = date.Date;
+            DateTime startOfNextDay = startOfDay.AddDays(1);
 
-            return DatabaseLink.Query<Pomodoro>(s)
-                .Count();
+            return DatabaseLink.Table<Pomodoro>()
+                .Count(p => p.Status == COMPLETE && p.StartDate >= startOfDay && p.StartDate < startOfNextDay);
+        }
+
+        // Kept for compatibility with the ZCaller utility.
+        public int GetPmodoroCount(DateTime date)
+        {
+            return GetPomodoroCount(date);
         }
 
         public void CompletePomodoro()
         {
-            DatabaseLink.Execute("update Pomodoro set status='" + COMPLETE + "', enddate = DATETIME('now') where enddate is null;");
+            DatabaseLink.Execute("update Pomodoro set status = ?, enddate = ? where status is null;", COMPLETE, DateTime.Now);
+        }
+
+        public void StartPause()
+        {
+            currentPauseStartDate = DateTime.Now;
+        }
+
+        public void CancelPause()
+        {
+            currentPauseStartDate = null;
+        }
+
+        public void RecordCompletedPause(bool isLongPause)
+        {
+            DateTime endDate = DateTime.Now;
+            DatabaseLink.Insert(new CompletedPause
+            {
+                StartDate = currentPauseStartDate ?? endDate,
+                EndDate = endDate,
+                IsLong = isLongPause
+            });
+            currentPauseStartDate = null;
+        }
+
+        public List<Pomodoro> GetCompletedPomodoros(DateTime date)
+        {
+            DateTime startOfDay = date.Date;
+            DateTime startOfNextDay = startOfDay.AddDays(1);
+
+            return DatabaseLink.Table<Pomodoro>()
+                .Where(pomodoro => pomodoro.Status == COMPLETE &&
+                    pomodoro.StartDate >= startOfDay && pomodoro.StartDate < startOfNextDay)
+                .OrderBy(pomodoro => pomodoro.StartDate)
+                .ToList();
+        }
+
+        public List<CompletedPause> GetCompletedPauses(DateTime date)
+        {
+            DateTime startOfDay = date.Date;
+            DateTime startOfNextDay = startOfDay.AddDays(1);
+
+            return DatabaseLink.Table<CompletedPause>()
+                .Where(pause => pause.EndDate >= startOfDay && pause.EndDate < startOfNextDay)
+                .OrderBy(pause => pause.EndDate)
+                .ToList();
         }
 
         public void CreateDB()
@@ -79,31 +167,44 @@ namespace PomodoroDatabase
             var db = new SQLiteConnection(dbFileName);
             db.CreateTable<Pomodoro>();
             db.CreateTable<PauseAdvice>();
+            db.CreateTable<CompletedPause>();
             db.Close();
         }
 
-        public void InsertAdvice(string advice)
+        public void InsertAdvice(string advice, string type = "Permanent")
         {
-            var safeAdvice = advice.Replace("'", "*");
+            if (string.IsNullOrWhiteSpace(advice))
+            {
+                return;
+            }
 
-            try
+            DatabaseLink.Insert(new PauseAdvice
             {
-                if (DatabaseLink.Query<Pomodoro>($"select id from pauseadvice where content = '{safeAdvice}';").Count() == 0)
-                {
-                    DatabaseLink.Execute($"insert into PauseAdvice (content, probability) values ('{safeAdvice}','10');");
-                }
-            }
-            catch (Exception e)
+                Content = advice.Trim(),
+                Probability = 10,
+                Type = string.Equals(type, "Once", StringComparison.OrdinalIgnoreCase) ? "Once" : "Permanent",
+                SortOrder = GetNextPauseReminderOrder()
+            });
+        }
+
+        public void UpdateAdvice(int id, string content, string type)
+        {
+            PauseAdvice reminder = DatabaseLink.Find<PauseAdvice>(id);
+            if (reminder == null || string.IsNullOrWhiteSpace(content))
             {
-                throw e;
+                return;
             }
+
+            reminder.Content = content.Trim();
+            reminder.Type = string.Equals(type, "Once", StringComparison.OrdinalIgnoreCase) ? "Once" : "Permanent";
+            DatabaseLink.Update(reminder);
         }
 
         public List<PauseAdvice> GetAllAdvices()
         {
             try
             {
-                string s = "SELECT * FROM PauseAdvice ORDER BY lastseen";
+                string s = "SELECT * FROM PauseAdvice WHERE IsCompleted = 0 OR IsCompleted IS NULL ORDER BY SortOrder, id";
                 return DatabaseLink.Query<PauseAdvice>(s);
             }
             catch (Exception e)
@@ -125,34 +226,83 @@ namespace PomodoroDatabase
             }
         }
 
-        public string GetRandomAdvice()
+        public void CompleteAdvice(int id)
         {
-            try
+            PauseAdvice reminder = DatabaseLink.Find<PauseAdvice>(id);
+            if (reminder == null)
             {
-                string s = "SELECT * FROM PauseAdvice ORDER BY lastseen LIMIT 5";
-                List<PauseAdvice> bList = new List<PauseAdvice>();
-                var top5 = DatabaseLink.Query<PauseAdvice>(s);
+                return;
+            }
 
-                top5.ForEach(x =>
+            reminder.IsCompleted = true;
+            reminder.CompletedDate = DateTime.Now;
+            DatabaseLink.Update(reminder);
+        }
+
+        public void MovePauseReminder(int id, int direction)
+        {
+            List<PauseAdvice> reminders = DatabaseLink.Table<PauseAdvice>()
+                .Where(reminder => !reminder.IsCompleted)
+                .ToList()
+                .OrderBy(reminder => reminder.SortOrder)
+                .ThenBy(reminder => reminder.id)
+                .ToList();
+            int currentIndex = reminders.FindIndex(reminder => reminder.id == id);
+            int targetIndex = currentIndex + direction;
+            if (currentIndex < 0 || targetIndex < 0 || targetIndex >= reminders.Count)
+            {
+                return;
+            }
+
+            int currentOrder = reminders[currentIndex].SortOrder;
+            reminders[currentIndex].SortOrder = reminders[targetIndex].SortOrder;
+            reminders[targetIndex].SortOrder = currentOrder;
+            DatabaseLink.Update(reminders[currentIndex]);
+            DatabaseLink.Update(reminders[targetIndex]);
+        }
+
+        private int GetNextPauseReminderOrder()
+        {
+            PauseAdvice lastReminder = DatabaseLink.Table<PauseAdvice>()
+                .Where(reminder => !reminder.IsCompleted)
+                .OrderByDescending(reminder => reminder.SortOrder)
+                .FirstOrDefault();
+            return lastReminder == null ? 1 : lastReminder.SortOrder + 1;
+        }
+
+        private void NormalizePauseReminderOrder()
+        {
+            List<PauseAdvice> reminders = DatabaseLink.Table<PauseAdvice>()
+                .Where(reminder => !reminder.IsCompleted)
+                .ToList()
+                .OrderBy(reminder => reminder.SortOrder <= 0 ? int.MaxValue : reminder.SortOrder)
+                .ThenBy(reminder => reminder.id)
+                .ToList();
+
+            for (int index = 0; index < reminders.Count; index++)
+            {
+                int expectedOrder = index + 1;
+                if (reminders[index].SortOrder != expectedOrder)
                 {
-                    int i = 0;
-                    while (++i < x.Probability)
-                    {
-                        bList.Add(x);
-                    }
-                });
-
-                var randomAdvice = bList.ElementAt((new Random()).Next(0, bList.Count - 1));
-
-                var u = "update pauseadvice set lastseen = DATETIME('now') where id = " + randomAdvice.id;
-                DatabaseLink.Execute(u);
-
-                return randomAdvice.Content;
+                    reminders[index].SortOrder = expectedOrder;
+                    DatabaseLink.Update(reminders[index]);
+                }
             }
-            catch (Exception e)
+        }
+
+        public PauseAdvice GetNextPauseReminder()
+        {
+            PauseAdvice onceReminder = DatabaseLink.Query<PauseAdvice>(
+                "SELECT * FROM PauseAdvice WHERE Type = ? AND (IsCompleted = 0 OR IsCompleted IS NULL) ORDER BY SortOrder, id LIMIT 1",
+                "Once").FirstOrDefault();
+            if (onceReminder != null)
             {
-                throw e;
+                return onceReminder;
             }
+
+            return DatabaseLink.Query<PauseAdvice>(
+                "SELECT * FROM PauseAdvice WHERE (Type IS NULL OR Type = '' OR Type = ?) AND (IsCompleted = 0 OR IsCompleted IS NULL) ORDER BY RANDOM() LIMIT 1",
+                "Permanent").FirstOrDefault();
         }
 
         public void ResetAdviceViews()

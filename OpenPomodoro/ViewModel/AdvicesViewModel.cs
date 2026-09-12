@@ -16,6 +16,10 @@ namespace OpenPomodoro.ViewModel
     {
         public AdvicesViewModel()
         {
+        }
+
+        public void Refresh()
+        {
             if (!IsInDesignModeStatic)
             {
                 PopulateTheAdviceList();
@@ -23,6 +27,15 @@ namespace OpenPomodoro.ViewModel
         }
 
         public string NewAdvice { get; set; }
+        public ObservableCollection<string> ReminderTypes { get; } =
+            new ObservableCollection<string> { "Permanent", "Once" };
+
+        private string _newReminderType = "Once";
+        public string NewReminderType
+        {
+            get { return _newReminderType; }
+            set { _newReminderType = value; RaisePropertyChanged("NewReminderType"); }
+        }
         private PauseAdvice _SelectedAdvice;
 
         public PauseAdvice SelectedAdvice
@@ -63,6 +76,7 @@ namespace OpenPomodoro.ViewModel
         private void ResetAdvice()
         {
             NewAdvice = "";
+            NewReminderType = "Once";
             RaisePropertyChanged("NewAdvice");
         }
 
@@ -104,6 +118,21 @@ namespace OpenPomodoro.ViewModel
         }
         #endregion
 
+        public ICommand DoMoveUp => new RelayCommand(() => MoveSelectedReminder(-1));
+
+        public ICommand DoMoveDown => new RelayCommand(() => MoveSelectedReminder(1));
+
+        private void MoveSelectedReminder(int direction)
+        {
+            if (SelectedAdvice == null)
+            {
+                return;
+            }
+
+            DBSingleton.getInstance().MovePauseReminder(SelectedAdvice.id, direction);
+            PopulateTheAdviceList();
+        }
+
         #region ICommand DoEdit
         private ICommand _DoEdit;
         public ICommand DoEdit
@@ -126,6 +155,7 @@ namespace OpenPomodoro.ViewModel
                 {
                     IsEditing = true;
                     NewAdvice = SelectedAdvice.Content;
+                    NewReminderType = SelectedAdvice.IsOnce ? "Once" : "Permanent";
                     RaisePropertyChanged("NewAdvice");
                 }
             }
@@ -162,10 +192,13 @@ namespace OpenPomodoro.ViewModel
                 {
                     if (SelectedAdvice != null)
                     {
-                        DBSingleton.getInstance().DeleteAdvice(SelectedAdvice.id);
+                        DBSingleton.getInstance().UpdateAdvice(SelectedAdvice.id, NewAdvice, NewReminderType);
                     }
                 }
-                DBSingleton.getInstance().InsertAdvice(NewAdvice);
+                else
+                {
+                    DBSingleton.getInstance().InsertAdvice(NewAdvice, NewReminderType);
+                }
                 IsEditing = false;
             }
             catch (System.Exception ex)

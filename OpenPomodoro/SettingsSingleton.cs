@@ -11,6 +11,9 @@ namespace OpenPomodoro
 
     public class SettingsSingleton
     {
+        private static readonly string SettingsFilePath = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory,
+            "settings.json");
 
         private SettingsSingleton() { }
 
@@ -32,7 +35,7 @@ namespace OpenPomodoro
         public void SaveSettings()
         {
             string json = JsonConvert.SerializeObject(settingsHolder);
-            File.WriteAllText("settings.json", json);
+            File.WriteAllText(SettingsFilePath, json);
 
         }
 
@@ -40,7 +43,7 @@ namespace OpenPomodoro
         {
             try
             {
-                this.settingsHolder = JsonConvert.DeserializeObject<Settings>(File.ReadAllText("settings.json"));
+                this.settingsHolder = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(SettingsFilePath));
 
             } catch (Exception)
             {
@@ -79,6 +82,16 @@ namespace OpenPomodoro
             return settingsHolder.SecondsUntilDesperateAlert;
         }
 
+        public bool isTickerEnabled()
+        {
+            return settingsHolder.TickerEnabled;
+        }
+
+        public int getTickerVolume()
+        {
+            return Math.Max(0, Math.Min(100, settingsHolder.TickerVolume));
+        }
+
         public Settings GetSettings()
         {
             return settingsHolder;
@@ -94,5 +107,9 @@ namespace OpenPomodoro
         public int SecondsUntilDesperateAlert { get; set; }
 
         public bool DisplayPauseAdvices { get; set; }
+
+        public bool TickerEnabled { get; set; } = true;
+
+        public int TickerVolume { get; set; } = 70;
     }
 }

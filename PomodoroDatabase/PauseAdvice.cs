@@ -17,5 +17,16 @@ namespace PomodoroDatabase
         public int Probability { get; set; }
 
         public DateTime LastSeen { get; set; }
+
+        public string Type { get; set; }
+
+        public int SortOrder { get; set; }
+
+        public bool IsCompleted { get; set; }
+
+        public DateTime CompletedDate { get; set; }
+
+        [Ignore]
+        public bool IsOnce => string.Equals(Type, "Once", StringComparison.OrdinalIgnoreCase);
     }
 }

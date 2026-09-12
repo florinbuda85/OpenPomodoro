@@ -1,0 +1,52 @@
+<Controls:MetroWindow x:Class="OpenPomodoro.AddPauseReminder"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Controls="http://metro.mahapps.com/winfx/xaml/controls"
+        Title="Add Pause Reminder"
+        Height="210"
+        Width="460"
+        ResizeMode="NoResize"
+        ShowMaxRestoreButton="False"
+        ShowMinButton="False"
+        ShowCloseButton="True"
+        GlowBrush="{DynamicResource AccentColorBrush}">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="130" />
+        </Grid.ColumnDefinitions>
+
+        <TextBox x:Name="ReminderText"
+                 Grid.Row="0"
+                 Grid.Column="0"
+                 Grid.ColumnSpan="2"
+                 Height="55"
+                 FontSize="18"
+                 TextWrapping="Wrap"
+                 AcceptsReturn="True"
+                 VerticalScrollBarVisibility="Auto" />
+
+        <Label Grid.Row="1" Grid.Column="0" Content="Reminder type" VerticalAlignment="Center" />
+        <ComboBox x:Name="ReminderType"
+                  Grid.Row="1"
+                  Grid.Column="1"
+                  Margin="3"
+                  SelectedIndex="1">
+            <ComboBoxItem Content="Permanent" />
+            <ComboBoxItem Content="Once" />
+        </ComboBox>
+
+        <Button Grid.Row="2"
+                Grid.Column="1"
+                Margin="3,12,3,0"
+                Height="32"
+                Content="Save"
+                IsDefault="True"
+                Click="Save_Click" />
+    </Grid>
+</Controls:MetroWindow>

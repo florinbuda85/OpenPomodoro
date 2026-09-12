@@ -20,7 +20,6 @@
 
     <Grid>
 
-
         <ProgressBar HorizontalAlignment="Center"  Name="mainBar" VerticalAlignment="Center" Width="497" Value="78" Grid.Column="0" Margin="10,10,10,28"/>
 
         <StackPanel Orientation="Horizontal"  Margin="10,33,0,0" Name="pomodoroHolder" >
@@ -55,7 +54,8 @@
             <Separator />
             <MenuItem Header="View Chart" Name="menuChart" Click="MenuChart_Click" />
             <MenuItem Header="Settings.." Name="menuSettings" Click="MenuSettings_Click" />
-            <MenuItem Header="Pause advices.." Name="menuPauseAdvices" Click="MenuPauseAdvices_Click" />
+            <MenuItem Header="Add Pause Reminder" Name="menuAddPauseReminder" Click="MenuAddPauseReminder_Click" />
+            <MenuItem Header="Pause Reminders.." Name="menuPauseAdvices" Click="MenuPauseAdvices_Click" />
             <Separator />
             <MenuItem Header="EXIT" Name="menuExit" Click="MenuExit_Click" />
         </ContextMenu>
