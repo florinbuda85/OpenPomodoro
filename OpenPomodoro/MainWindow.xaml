@@ -12,33 +12,36 @@
                        ShowCloseButton="False"
                        
         mc:Ignorable="d"
-        Title="MainWindow" Height="65" Width="525" Topmost="True" ResizeMode="NoResize" AllowsTransparency="True" WindowStyle="None" >
+        Title="MainWindow" Height="73" Width="525" Topmost="True" ResizeMode="NoResize" AllowsTransparency="True" WindowStyle="None" >
 
     <!--Controls:MetroWindow.Background>
         <SolidColorBrush Color="White" Opacity="0.5"/>
     </-->
 
-    <Grid>
+    <Grid Background="Transparent" PreviewMouseLeftButtonDown="WindowSurface_MouseLeftButtonDown">
 
-        <ProgressBar HorizontalAlignment="Center"  Name="mainBar" VerticalAlignment="Center" Width="497" Value="78" Grid.Column="0" Margin="10,10,10,28"/>
-
-        <StackPanel Orientation="Horizontal"  Margin="10,33,0,0" Name="pomodoroHolder" >
-            <ItemsControl ItemsSource="{Binding Path=Pomodoros}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Image HorizontalAlignment="Left" Height="24"   Source="{Binding}"/>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+        <StackPanel Width="497" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,18,0,0">
+            <ProgressBar Name="mainBar" Height="8" MinHeight="0" Value="78" />
+            <Canvas Name="dayTimeline" Height="{Binding ActualHeight, ElementName=mainBar}"
+                    Margin="0,3,0,0" Background="Gray" ClipToBounds="True" />
         </StackPanel>
 
-        <TextBlock Margin="14,1,439,47" Text="{Binding TextTimePassed}"  TextAlignment="Left" />
-        <TextBlock Margin="401,1,14,47" Text="{Binding TextTimeLeft}"  TextAlignment="Right"/>
+        <TextBlock Margin="14,41,0,0"
+                   Text="{Binding CompletedPomodoroCount}"
+                   ToolTip="Pomodoros completed today"
+                   Width="40"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Top" />
+
+        <TextBlock Margin="60,41,60,0"
+                   Text="{Binding CenterText}"
+                   TextAlignment="Center"
+                   TextTrimming="CharacterEllipsis"
+                   HorizontalAlignment="Stretch"
+                   VerticalAlignment="Top" />
+
+        <TextBlock Margin="14,1,439,55" Text="{Binding TextTimePassed}"  TextAlignment="Left" />
+        <TextBlock Margin="401,1,14,55" Text="{Binding TextTimeLeft}"  TextAlignment="Right"/>
 
 
     </Grid>
@@ -46,6 +49,7 @@
     <Controls:MetroWindow.ContextMenu>
         <ContextMenu>
             <MenuItem Header="Start work" Name="menuStartWork" Click="menuStartWork_Click"/>
+            <MenuItem Header="Start with a plan" Name="menuStartWithPlan" Click="MenuStartWithPlan_Click"/>
             <MenuItem Header="Cancel progress" Name="menuCancelProgres" Click="menuCancelProgress_Click" />
             <MenuItem Header="Force complete" Name="menuForceCompleteProgres" Click="menuForceCompleteProgres_Click" />
 
@@ -53,6 +57,7 @@
             <MenuItem Header="Start Long Pause" Name="menuStartLongPause" Click="menuStartLongPause_Click" />
             <Separator />
             <MenuItem Header="View Chart" Name="menuChart" Click="MenuChart_Click" />
+            <MenuItem Header="My plans .." Click="MenuMyPlans_Click" />
             <MenuItem Header="Settings.." Name="menuSettings" Click="MenuSettings_Click" />
             <MenuItem Header="Add Pause Reminder" Name="menuAddPauseReminder" Click="MenuAddPauseReminder_Click" />
             <MenuItem Header="Pause Reminders.." Name="menuPauseAdvices" Click="MenuPauseAdvices_Click" />

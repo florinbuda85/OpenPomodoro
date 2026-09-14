@@ -79,7 +79,10 @@
     <Compile Include="DBSingleton.cs" />
     <Compile Include="PauseAdvice.cs" />
     <Compile Include="CompletedPause.cs" />
+    <Compile Include="CanceledPause.cs" />
+    <Compile Include="DayActivity.cs" />
     <Compile Include="Pomodoro.cs" />
+    <Compile Include="PomodoroPlan.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

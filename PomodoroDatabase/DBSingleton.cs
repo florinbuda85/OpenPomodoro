@@ -22,6 +22,8 @@ namespace PomodoroDatabase
             DatabaseLink.CreateTable<Pomodoro>();
             DatabaseLink.CreateTable<PauseAdvice>();
             DatabaseLink.CreateTable<CompletedPause>();
+            DatabaseLink.CreateTable<CanceledPause>();
+            DatabaseLink.CreateTable<PomodoroPlan>();
             NormalizePauseReminderOrder();
             CancelUnfinishedPomodoros(DateTime.Now);
         }
@@ -39,8 +41,13 @@ namespace PomodoroDatabase
 
         /****/
 
-        public int? StartPomodoro()
+        public int? StartPomodoro(int? planId = null)
         {
+            if (planId.HasValue && GetPomodoroPlan(planId.Value) == null)
+            {
+                throw new ArgumentException("The selected plan no longer exists.", nameof(planId));
+            }
+
             DateTime now = DateTime.Now;
             int? secondsBetweenPomodoros = GetSecondsSinceLastCompletedPomodoro(now);
             CancelUnfinishedPomodoros(now);
@@ -48,8 +55,62 @@ namespace PomodoroDatabase
             // Insert only StartDate so EndDate remains NULL until the Pomodoro finishes.
             // SQLite-net would otherwise persist DateTime.MinValue for the non-nullable
             // EndDate property, making the completion update miss this row.
-            DatabaseLink.Execute("insert into Pomodoro (startdate) values (?);", now);
+            DatabaseLink.Execute(
+                "insert into Pomodoro (startdate, planid) values (?, ?);",
+                now,
+                planId);
             return secondsBetweenPomodoros;
+        }
+
+        public int CreatePomodoroPlan(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                throw new ArgumentException("Plan content cannot be empty.", nameof(content));
+            }
+
+            PomodoroPlan plan = new PomodoroPlan
+            {
+                Content = content.Trim(),
+                CreatedDate = DateTime.Now,
+                PomodoroCount = 0
+            };
+            DatabaseLink.Insert(plan);
+            return plan.id;
+        }
+
+        public List<PomodoroPlan> GetAllPomodoroPlans()
+        {
+            return DatabaseLink.Table<PomodoroPlan>()
+                .OrderByDescending(plan => plan.PomodoroCount)
+                .ThenByDescending(plan => plan.id)
+                .ToList();
+        }
+
+        public PomodoroPlan GetPomodoroPlan(int id)
+        {
+            return DatabaseLink.Find<PomodoroPlan>(id);
+        }
+
+        public void UpdatePomodoroPlan(int id, string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                throw new ArgumentException("Plan content cannot be empty.", nameof(content));
+            }
+
+            // Update only the text so accumulated counts cannot be overwritten by an older view.
+            DatabaseLink.Execute("update PomodoroPlan set Content = ? where id = ?;", content.Trim(), id);
+        }
+
+        public void DeletePomodoroPlan(int id)
+        {
+            DatabaseLink.RunInTransaction(() =>
+            {
+                // Keep session history and chart totals when a plan is deleted.
+                DatabaseLink.Execute("update Pomodoro set PlanId = NULL where PlanId = ?;", id);
+                DatabaseLink.Delete<PomodoroPlan>(id);
+            });
         }
 
         public void CancelPomodoro()
@@ -114,7 +175,30 @@ namespace PomodoroDatabase
 
         public void CompletePomodoro()
         {
-            DatabaseLink.Execute("update Pomodoro set status = ?, enddate = ? where status is null;", COMPLETE, DateTime.Now);
+            Pomodoro activePomodoro = DatabaseLink.Table<Pomodoro>()
+                .Where(pomodoro => pomodoro.Status == null)
+                .OrderByDescending(pomodoro => pomodoro.id)
+                .FirstOrDefault();
+            if (activePomodoro == null)
+            {
+                return;
+            }
+
+            DatabaseLink.RunInTransaction(() =>
+            {
+                DatabaseLink.Execute(
+                    "update Pomodoro set status = ?, enddate = ? where id = ?;",
+                    COMPLETE,
+                    DateTime.Now,
+                    activePomodoro.id);
+
+                if (activePomodoro.PlanId.HasValue)
+                {
+                    DatabaseLink.Execute(
+                        "update PomodoroPlan set pomodorocount = pomodorocount + 1 where id = ?;",
+                        activePomodoro.PlanId.Value);
+                }
+            });
         }
 
         public void StartPause()
@@ -124,6 +208,14 @@ namespace PomodoroDatabase
 
         public void CancelPause()
         {
+            if (currentPauseStartDate.HasValue)
+            {
+                DatabaseLink.Insert(new CanceledPause
+                {
+                    StartDate = currentPauseStartDate.Value,
+                    EndDate = DateTime.Now
+                });
+            }
             currentPauseStartDate = null;
         }
 
@@ -137,6 +229,39 @@ namespace PomodoroDatabase
                 IsLong = isLongPause
             });
             currentPauseStartDate = null;
+        }
+
+        public List<DayActivity> GetDayActivity(DateTime now)
+        {
+            DateTime dayStart = now.Date;
+            DateTime dayEnd = dayStart.AddDays(1);
+            var plans = GetAllPomodoroPlans().ToDictionary(plan => plan.id);
+            var intervals = DatabaseLink.Query<Pomodoro>(
+                "select * from Pomodoro where StartDate < ? and (EndDate > ? or EndDate is null);",
+                dayEnd, dayStart)
+                .Select(work => new DayActivity
+                {
+                    StartDate = work.StartDate,
+                    EndDate = work.Status == null ? now : work.EndDate,
+                    PlanText = work.PlanId.HasValue && plans.ContainsKey(work.PlanId.Value)
+                        ? plans[work.PlanId.Value].Content : null
+                })
+                .ToList();
+
+            intervals.AddRange(DatabaseLink.Table<CompletedPause>()
+                .Where(pause => pause.StartDate < dayEnd && pause.EndDate > dayStart)
+                .ToList()
+                .Select(pause => new DayActivity { StartDate = pause.StartDate, EndDate = pause.EndDate, IsPause = true }));
+            intervals.AddRange(DatabaseLink.Table<CanceledPause>()
+                .Where(pause => pause.StartDate < dayEnd && pause.EndDate > dayStart)
+                .ToList()
+                .Select(pause => new DayActivity { StartDate = pause.StartDate, EndDate = pause.EndDate, IsPause = true }));
+            if (currentPauseStartDate.HasValue)
+            {
+                intervals.Add(new DayActivity { StartDate = currentPauseStartDate.Value, EndDate = now, IsPause = true });
+            }
+
+            return intervals.OrderBy(interval => interval.StartDate).ToList();
         }
 
         public List<Pomodoro> GetCompletedPomodoros(DateTime date)
@@ -168,6 +293,8 @@ namespace PomodoroDatabase
             db.CreateTable<Pomodoro>();
             db.CreateTable<PauseAdvice>();
             db.CreateTable<CompletedPause>();
+            db.CreateTable<CanceledPause>();
+            db.CreateTable<PomodoroPlan>();
             db.Close();
         }
 

@@ -2,6 +2,7 @@
 using MahApps.Metro.Controls;
 using System;
 using System.Windows;
+using System.Windows.Input;
 using System.Linq;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -40,6 +41,9 @@ namespace OpenPomodoro
         DateTime lastTickMinute = DateTime.MinValue;
         bool desperateAlertStarted;
         int targetSeconds = 0;
+        string currentPlan;
+        int? currentPlanId;
+        DateTime pomodoroCountDate;
 
         WasapiOut tickerAudioOutput;
         MixingSampleProvider tickerAudioMixer;
@@ -83,13 +87,31 @@ namespace OpenPomodoro
 
             Pomodoros = new ObservableCollection<string>();
             LoadCompletedSessionsForToday();
+            RefreshCompletedPomodoroCount();
 
 
-            // start working
-            this.SetWindowState(WStates.WORKING);
+            // Ask for the first plan after the window has been displayed.
+            this.Loaded += MainWindow_StartWithPlanOnStartup;
             this.Loaded += MainWindow_Loaded;
 
 
+        }
+
+        private void WindowSurface_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                e.Handled = true;
+                DragMove();
+            }
+        }
+
+        private void MainWindow_StartWithPlanOnStartup(object sender, RoutedEventArgs e)
+        {
+            this.Loaded -= MainWindow_StartWithPlanOnStartup;
+            Dispatcher.BeginInvoke(
+                new Action(() => MenuStartWithPlan_Click(this, new RoutedEventArgs())),
+                System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         private void LoadCompletedSessionsForToday()
@@ -172,6 +194,92 @@ namespace OpenPomodoro
         }
         #endregion
 
+        #region Property CenterText
+        private string _centerText;
+        public string CenterText
+        {
+            get
+            {
+                return _centerText;
+            }
+            set
+            {
+                _centerText = value;
+                OnPropertyChanged("CenterText");
+            }
+        }
+        #endregion
+
+        public int CompletedPomodoroCount { get; private set; }
+
+        private void RefreshCompletedPomodoroCount()
+        {
+            pomodoroCountDate = DateTime.Today;
+            CompletedPomodoroCount = DBSingleton.getInstance().GetPomodoroCount(pomodoroCountDate);
+            OnPropertyChanged(nameof(CompletedPomodoroCount));
+        }
+
+        private void RefreshDayTimeline()
+        {
+            DateTime now = DateTime.Now;
+            TimeSpan startTime;
+            TimeSpan endTime;
+            if (!SettingsSingleton.getInstance().GetSettings().TryGetDayTimelineHours(out startTime, out endTime))
+            {
+                startTime = TimeSpan.FromHours(9);
+                endTime = TimeSpan.FromHours(18);
+            }
+
+            DateTime rangeStart = now.Date.Add(startTime);
+            DateTime rangeEnd = now.Date.Add(endTime);
+            double rangeSeconds = (rangeEnd - rangeStart).TotalSeconds;
+            double width = dayTimeline.ActualWidth > 0 ? dayTimeline.ActualWidth : 497;
+            double height = mainBar.ActualHeight > 0 ? mainBar.ActualHeight : mainBar.Height;
+
+            int segmentIndex = 0;
+            dayTimeline.ToolTip = $"{rangeStart:HH:mm} - {rangeEnd:HH:mm} | Red: work | Green: pause | Gray: no activity";
+            foreach (var activity in DBSingleton.getInstance().GetDayActivity(now))
+            {
+                DateTime start = activity.StartDate < rangeStart ? rangeStart : activity.StartDate;
+                DateTime end = activity.EndDate > rangeEnd ? rangeEnd : activity.EndDate;
+                if (end > now)
+                {
+                    end = now;
+                }
+                if (end <= start)
+                {
+                    continue;
+                }
+
+                // Keep the same elements between ticks so hovering does not lose its tooltip.
+                System.Windows.Shapes.Rectangle segment;
+                if (segmentIndex < dayTimeline.Children.Count)
+                {
+                    segment = (System.Windows.Shapes.Rectangle)dayTimeline.Children[segmentIndex];
+                }
+                else
+                {
+                    segment = new System.Windows.Shapes.Rectangle();
+                    dayTimeline.Children.Add(segment);
+                }
+                segmentIndex++;
+                segment.Width = (end - start).TotalSeconds / rangeSeconds * width;
+                segment.Height = height;
+                segment.Fill = activity.IsPause ? Brushes.Green : Brushes.Red;
+                string label = activity.IsPause ? "Pause" : "Pomodoro";
+                if (!activity.IsPause && !string.IsNullOrWhiteSpace(activity.PlanText))
+                {
+                    label += $" ({activity.PlanText})";
+                }
+                segment.ToolTip = $"{label}\n{activity.StartDate:HH:mm:ss} - {activity.EndDate:HH:mm:ss}";
+                System.Windows.Controls.Canvas.SetLeft(segment, (start - rangeStart).TotalSeconds / rangeSeconds * width);
+            }
+            while (dayTimeline.Children.Count > segmentIndex)
+            {
+                dayTimeline.Children.RemoveAt(dayTimeline.Children.Count - 1);
+            }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName)
         {
@@ -203,6 +311,11 @@ namespace OpenPomodoro
         private void OnStateTimerElapsed(object source, ElapsedEventArgs e)
         {
             DateTime currentTime = DateTime.Now;
+            Dispatcher.Invoke(RefreshDayTimeline);
+            if (currentTime.Date != pomodoroCountDate)
+            {
+                Dispatcher.Invoke(RefreshCompletedPomodoroCount);
+            }
             int elapsedSeconds = Math.Max(0, (int)(currentTime - stateStartedAt).TotalSeconds);
             int state = currentWindowState;
 
@@ -352,6 +465,7 @@ namespace OpenPomodoro
                     ClearAlert();
                     mainBar.Value = 0;
                     menuStartWork.Visibility = Visibility.Visible;
+                    menuStartWithPlan.Visibility = Visibility.Visible;
                     break;
 
                 case WStates.WORKING:
@@ -368,6 +482,11 @@ namespace OpenPomodoro
                     Pomodoros.Remove(WORK_INPROGRESS);
                     Pomodoros.Add(WORK_COMPLETED);
                     PomodoroDatabase.DBSingleton.getInstance().CompletePomodoro();
+                    RefreshCompletedPomodoroCount();
+                    foreach (var plansView in OwnedWindows.OfType<MyPlansView>())
+                    {
+                        plansView.RefreshPlans();
+                    }
                     PlayCompletionSound("pomodoro_end");
                     SetWindowState(WStates.STOP);
                     break;
@@ -386,11 +505,13 @@ namespace OpenPomodoro
                 case WStates.PAUSING_LONG:
                     ClearAlert();
                     ChangeTheme("green");
+                    CenterText = string.Empty;
                     Pomodoros.Add(PAUSE_IN_PROGRES);
                     DBSingleton.getInstance().StartPause();
                     StartStateTimer();
                     menuCancelProgres.Visibility = Visibility.Visible;
                     menuForceCompleteProgres.Visibility = Visibility.Visible;
+                    RefreshDayTimeline();
                     TryShowPauseAdvice();
                     break;
 
@@ -405,16 +526,19 @@ namespace OpenPomodoro
 
                 case WStates.ALERTING:
                     ChangeTheme("blue");
+                    CenterText = string.Empty;
 
                     menuStartShortPause.Visibility = Visibility.Visible;
                     menuStartLongPause.Visibility = Visibility.Visible;
                     menuStartWork.Visibility = Visibility.Visible;
+                    menuStartWithPlan.Visibility = Visibility.Visible;
 
                     StartStateTimer();
 
                     break;
 
             }
+            RefreshDayTimeline();
         }
 
         private void ShowSuccessWhenWindowIsReady(string message)
@@ -581,7 +705,7 @@ namespace OpenPomodoro
         {
             StartStateTimer();
 
-            int? secondsBetweenPomodoros = DBSingleton.getInstance().StartPomodoro();
+            int? secondsBetweenPomodoros = DBSingleton.getInstance().StartPomodoro(currentPlanId);
             if (secondsBetweenPomodoros.HasValue)
             {
                 int minutesBetweenPomodoros = (int)Math.Round(
@@ -636,6 +760,7 @@ namespace OpenPomodoro
         private void CleanMenu()
         {
             menuStartWork.Visibility = Visibility.Collapsed;
+            menuStartWithPlan.Visibility = Visibility.Collapsed;
             menuStartLongPause.Visibility = Visibility.Collapsed;
             menuStartShortPause.Visibility = Visibility.Collapsed;
             menuCancelProgres.Visibility = Visibility.Collapsed;
@@ -646,7 +771,123 @@ namespace OpenPomodoro
 
         private void menuStartWork_Click(object sender, RoutedEventArgs e)
         {
+            if (!string.IsNullOrWhiteSpace(currentPlan))
+            {
+                MessageBoxResult continuePlan = MessageBox.Show(
+                    this,
+                    $"Continue with this plan?\n\n{currentPlan}",
+                    "Start Pomodoro",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (continuePlan == MessageBoxResult.No)
+                {
+                    currentPlan = null;
+                    currentPlanId = null;
+                }
+            }
+
+            CenterText = currentPlan ?? string.Empty;
             this.SetWindowState(WStates.WORKING);
+        }
+
+        private void MenuStartWithPlan_Click(object sender, RoutedEventArgs e)
+        {
+            this.Topmost = false;
+
+            StartWithPlanView view = new StartWithPlanView
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            bool? accepted = view.ShowDialog();
+
+            this.Topmost = true;
+
+            if (accepted == true)
+            {
+                currentPlan = view.PlanText;
+                currentPlanId = view.SelectedPlanId.HasValue
+                    ? view.SelectedPlanId
+                    : DBSingleton.getInstance().CreatePomodoroPlan(currentPlan);
+                CenterText = currentPlan;
+                this.SetWindowState(WStates.WORKING);
+            }
+        }
+
+        private void RefreshCurrentPlan()
+        {
+            if (!currentPlanId.HasValue)
+            {
+                return;
+            }
+
+            var plan = DBSingleton.getInstance().GetPomodoroPlan(currentPlanId.Value);
+            currentPlanId = plan?.id;
+            currentPlan = plan?.Content;
+            if (currentWindowState == WStates.WORKING)
+            {
+                CenterText = currentPlan ?? string.Empty;
+            }
+        }
+
+        private void MenuMyPlans_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                bool wasTopmost = Topmost;
+                var view = new MyPlansView
+                {
+                    Owner = this,
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen
+                };
+                view.PlansChanged += (source, args) => RefreshCurrentPlan();
+                bool? accepted;
+                try
+                {
+                    Topmost = false;
+                    accepted = view.ShowDialog();
+                }
+                finally
+                {
+                    Topmost = wasTopmost;
+                }
+
+                if (accepted != true)
+                {
+                    return;
+                }
+
+                if (IsSessionRunning() && MessageBox.Show(this,
+                    "Cancel the current session and start with this plan?",
+                    "Start with this plan", MessageBoxButton.YesNo,
+                    MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                if (IsSessionRunning())
+                {
+                    SetWindowState(WStates.STOP);
+                }
+
+                currentPlanId = view.PlanToStart.id;
+                currentPlan = view.PlanToStart.Content;
+                CenterText = currentPlan;
+                SetWindowState(WStates.WORKING);
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(this, "Could not open My plans.\n\n" + exception.Message,
+                    "My plans", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private bool IsSessionRunning()
+        {
+            return currentWindowState == WStates.WORKING
+                || currentWindowState == WStates.PAUSING
+                || currentWindowState == WStates.PAUSING_LONG;
         }
 
         private void menuCancelProgress_Click(object sender, RoutedEventArgs e)
@@ -690,6 +931,7 @@ namespace OpenPomodoro
             view.ShowDialog();
 
             this.Topmost = true;
+            RefreshDayTimeline();
         }
 
         private void MenuExit_Click(object sender, RoutedEventArgs e)
@@ -762,6 +1004,7 @@ namespace OpenPomodoro
                     }
                     else if (reminder.IsOnce)
                     {
+                        CenterText = reminder.Content;
                         ReminderDialog dialog = new ReminderDialog(
                             reminder.Content,
                             true)
@@ -776,6 +1019,7 @@ namespace OpenPomodoro
                     }
                     else
                     {
+                        CenterText = reminder.Content;
                         ReminderDialog dialog = new ReminderDialog(reminder.Content, false)
                         {
                             Owner = this

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,7 +12,10 @@ namespace OpenPomodoro
 
     public class SettingsSingleton
     {
-        private static readonly string SettingsFilePath = Path.Combine(
+        private static readonly string UserSettingsFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "OpenPomodoroSettings.json");
+        private static readonly string BundledSettingsFilePath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,
             "settings.json");
 
@@ -34,8 +38,14 @@ namespace OpenPomodoro
 
         public void SaveSettings()
         {
+            TimeSpan start;
+            TimeSpan end;
+            if (!settingsHolder.TryGetDayTimelineHours(out start, out end))
+            {
+                throw new ArgumentException("Enter timeline times as HH:mm, with the end later than the start (e.g. 09:00 to 18:00).");
+            }
             string json = JsonConvert.SerializeObject(settingsHolder);
-            File.WriteAllText(SettingsFilePath, json);
+            File.WriteAllText(UserSettingsFilePath, json);
 
         }
 
@@ -43,7 +53,20 @@ namespace OpenPomodoro
         {
             try
             {
-                this.settingsHolder = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(SettingsFilePath));
+                string settingsPath = File.Exists(UserSettingsFilePath)
+                    ? UserSettingsFilePath
+                    : BundledSettingsFilePath;
+                this.settingsHolder = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(settingsPath));
+                if (this.settingsHolder == null)
+                {
+                    throw new InvalidDataException("Settings file is empty.");
+                }
+
+                // Migrate the first run's bundled settings to the user-owned file.
+                if (!File.Exists(UserSettingsFilePath))
+                {
+                    SaveSettings();
+                }
 
             } catch (Exception)
             {
@@ -111,5 +134,15 @@ namespace OpenPomodoro
         public bool TickerEnabled { get; set; } = true;
 
         public int TickerVolume { get; set; } = 70;
+
+        public string DayTimelineStart { get; set; } = "09:00";
+        public string DayTimelineEnd { get; set; } = "18:00";
+
+        public bool TryGetDayTimelineHours(out TimeSpan start, out TimeSpan end)
+        {
+            bool validStart = TimeSpan.TryParseExact(DayTimelineStart, @"hh\:mm", CultureInfo.InvariantCulture, out start);
+            bool validEnd = TimeSpan.TryParseExact(DayTimelineEnd, @"hh\:mm", CultureInfo.InvariantCulture, out end);
+            return validStart && validEnd && start < end;
+        }
     }
 }

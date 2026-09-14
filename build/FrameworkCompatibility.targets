@@ -1,0 +1,8 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- The Framework MSBuild needs this facade explicitly for sqlite-net's netstandard API. -->
+  <ItemGroup>
+    <Reference Include="netstandard">
+      <HintPath>$(PomodoroFrameworkFacades)\netstandard.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>
