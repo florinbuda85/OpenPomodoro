@@ -44,6 +44,10 @@ namespace OpenPomodoro
             {
                 throw new ArgumentException("Enter timeline times as HH:mm, with the end later than the start (e.g. 09:00 to 18:00).");
             }
+            if (settingsHolder.PlanExportEnabled && string.IsNullOrWhiteSpace(settingsHolder.PlanExportRoot))
+            {
+                throw new ArgumentException("Enter a root folder for the plan list export.");
+            }
             string json = JsonConvert.SerializeObject(settingsHolder);
             File.WriteAllText(UserSettingsFilePath, json);
 
@@ -137,6 +141,10 @@ namespace OpenPomodoro
 
         public string DayTimelineStart { get; set; } = "09:00";
         public string DayTimelineEnd { get; set; } = "18:00";
+
+        public bool PlanExportEnabled { get; set; } = true;
+
+        public string PlanExportRoot { get; set; } = AppDomain.CurrentDomain.BaseDirectory;
 
         public bool TryGetDayTimelineHours(out TimeSpan start, out TimeSpan end)
         {

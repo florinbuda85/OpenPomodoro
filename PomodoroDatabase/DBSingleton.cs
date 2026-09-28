@@ -9,6 +9,8 @@ namespace PomodoroDatabase
 {
     public class DBSingleton
     {
+        public const int MaxPlanLength = 100;
+
         const string CANCELED = "CANCELED";
         const string COMPLETE = "COMPLETE";
         readonly string dbFileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PomodoroDB.sqlite");
@@ -24,6 +26,7 @@ namespace PomodoroDatabase
             DatabaseLink.CreateTable<CompletedPause>();
             DatabaseLink.CreateTable<CanceledPause>();
             DatabaseLink.CreateTable<PomodoroPlan>();
+            TruncateExistingPlans();
             NormalizePauseReminderOrder();
             CancelUnfinishedPomodoros(DateTime.Now);
         }
@@ -41,9 +44,9 @@ namespace PomodoroDatabase
 
         /****/
 
-        public int? StartPomodoro(int? planId = null)
+        public int? StartPomodoro(int planId)
         {
-            if (planId.HasValue && GetPomodoroPlan(planId.Value) == null)
+            if (GetPomodoroPlan(planId) == null)
             {
                 throw new ArgumentException("The selected plan no longer exists.", nameof(planId));
             }
@@ -64,14 +67,11 @@ namespace PomodoroDatabase
 
         public int CreatePomodoroPlan(string content)
         {
-            if (string.IsNullOrWhiteSpace(content))
-            {
-                throw new ArgumentException("Plan content cannot be empty.", nameof(content));
-            }
+            string normalizedContent = NormalizePlanContent(content);
 
             PomodoroPlan plan = new PomodoroPlan
             {
-                Content = content.Trim(),
+                Content = normalizedContent,
                 CreatedDate = DateTime.Now,
                 PomodoroCount = 0
             };
@@ -94,13 +94,31 @@ namespace PomodoroDatabase
 
         public void UpdatePomodoroPlan(int id, string content)
         {
+            string normalizedContent = NormalizePlanContent(content);
+
+            // Update only the text so accumulated counts cannot be overwritten by an older view.
+            DatabaseLink.Execute("update PomodoroPlan set Content = ? where id = ?;", normalizedContent, id);
+        }
+
+        private static string NormalizePlanContent(string content)
+        {
             if (string.IsNullOrWhiteSpace(content))
             {
                 throw new ArgumentException("Plan content cannot be empty.", nameof(content));
             }
 
-            // Update only the text so accumulated counts cannot be overwritten by an older view.
-            DatabaseLink.Execute("update PomodoroPlan set Content = ? where id = ?;", content.Trim(), id);
+            string normalizedContent = content.Trim();
+            return normalizedContent.Length <= MaxPlanLength
+                ? normalizedContent
+                : normalizedContent.Substring(0, MaxPlanLength);
+        }
+
+        private void TruncateExistingPlans()
+        {
+            DatabaseLink.Execute(
+                "update PomodoroPlan set Content = substr(Content, 1, ?) where length(Content) > ?;",
+                MaxPlanLength,
+                MaxPlanLength);
         }
 
         public void DeletePomodoroPlan(int id)
@@ -173,7 +191,7 @@ namespace PomodoroDatabase
             return GetPomodoroCount(date);
         }
 
-        public void CompletePomodoro()
+        public Pomodoro CompletePomodoro()
         {
             Pomodoro activePomodoro = DatabaseLink.Table<Pomodoro>()
                 .Where(pomodoro => pomodoro.Status == null)
@@ -181,24 +199,29 @@ namespace PomodoroDatabase
                 .FirstOrDefault();
             if (activePomodoro == null)
             {
-                return;
+                return null;
             }
 
+            DateTime completedAt = DateTime.Now;
             DatabaseLink.RunInTransaction(() =>
             {
                 DatabaseLink.Execute(
                     "update Pomodoro set status = ?, enddate = ? where id = ?;",
                     COMPLETE,
-                    DateTime.Now,
+                    completedAt,
                     activePomodoro.id);
 
                 if (activePomodoro.PlanId.HasValue)
                 {
                     DatabaseLink.Execute(
                         "update PomodoroPlan set pomodorocount = pomodorocount + 1 where id = ?;",
-                        activePomodoro.PlanId.Value);
+                    activePomodoro.PlanId.Value);
                 }
             });
+
+            activePomodoro.Status = COMPLETE;
+            activePomodoro.EndDate = completedAt;
+            return activePomodoro;
         }
 
         public void StartPause()

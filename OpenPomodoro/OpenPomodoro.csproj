@@ -112,6 +112,7 @@
     <Compile Include="PauseAdvices.xaml.cs">
       <DependentUpon>PauseAdvices.xaml</DependentUpon>
     </Compile>
+    <Compile Include="PlanListExporter.cs" />
     <Compile Include="ReminderDialog.xaml.cs">
       <DependentUpon>ReminderDialog.xaml</DependentUpon>
     </Compile>

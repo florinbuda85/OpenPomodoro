@@ -1,1 +1,1 @@
-{"DurationShortPause":300,"DurationLongPause":900,"DurationWork":1500,"SecondsUntilDesperateAlert":300,"DisplayPauseAdvices":true,"TickerEnabled":true,"TickerVolume":70}
+{"DurationShortPause":300,"DurationLongPause":900,"DurationWork":1500,"SecondsUntilDesperateAlert":300,"DisplayPauseAdvices":true,"TickerEnabled":true,"TickerVolume":70,"PlanExportEnabled":true}

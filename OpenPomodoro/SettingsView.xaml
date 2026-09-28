@@ -8,7 +8,7 @@
         mc:Ignorable="d"
         DataContext="{Binding SettingsVM, Source={StaticResource Locator}}"
         GlowBrush="{DynamicResource AccentColorBrush}" 
-        Title="SettingsView" Height="630" Width="300">
+        Title="SettingsView" Height="740" Width="520">
     <StackPanel Orientation="Vertical" Margin="20">
 
         <Label Content="Work session duration" Margin="0,0,0,0" />
@@ -47,6 +47,15 @@
         <Label Content="Day timeline end (HH:mm)" />
         <TextBox Width="200" HorizontalAlignment="Left" MaxLength="5"
                  Text="{Binding SettingsHolder.DayTimelineEnd, UpdateSourceTrigger=PropertyChanged}" />
+
+        <CheckBox Margin="0,15,0,0"
+                  Content="Export plan list automatically"
+                  IsChecked="{Binding SettingsHolder.PlanExportEnabled}" />
+        <Label Content="Plan list root folder" Margin="0,5,0,0" />
+        <TextBox Width="440"
+                 HorizontalAlignment="Left"
+                 Text="{Binding SettingsHolder.PlanExportRoot, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Files are created in MM\dd\planlist.txt under this folder." />
 
         <Button Content="Save settings" Margin="0,25,0,0" Command="{Binding DoSaveSettings}" Width="150" HorizontalAlignment="Left" />
 

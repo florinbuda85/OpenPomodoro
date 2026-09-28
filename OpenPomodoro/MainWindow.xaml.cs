@@ -237,9 +237,13 @@ namespace OpenPomodoro
             double height = mainBar.ActualHeight > 0 ? mainBar.ActualHeight : mainBar.Height;
 
             int segmentIndex = 0;
-            dayTimeline.ToolTip = $"{rangeStart:HH:mm} - {rangeEnd:HH:mm} | Red: work | Green: pause | Gray: no activity";
+            bool previousActivityWasPomodoro = false;
+            dayTimeline.ToolTip = $"{rangeStart:HH:mm} - {rangeEnd:HH:mm} | Red: work | Green: pause | Black: no pause between Pomodoros | Gray: no activity";
             foreach (var activity in DBSingleton.getInstance().GetDayActivity(now))
             {
+                bool addNoPauseSeparator = !activity.IsPause && previousActivityWasPomodoro;
+                previousActivityWasPomodoro = !activity.IsPause;
+
                 DateTime start = activity.StartDate < rangeStart ? rangeStart : activity.StartDate;
                 DateTime end = activity.EndDate > rangeEnd ? rangeEnd : activity.EndDate;
                 if (end > now)
@@ -266,6 +270,8 @@ namespace OpenPomodoro
                 segment.Width = (end - start).TotalSeconds / rangeSeconds * width;
                 segment.Height = height;
                 segment.Fill = activity.IsPause ? Brushes.Green : Brushes.Red;
+                segment.IsHitTestVisible = true;
+                System.Windows.Controls.Panel.SetZIndex(segment, 0);
                 string label = activity.IsPause ? "Pause" : "Pomodoro";
                 if (!activity.IsPause && !string.IsNullOrWhiteSpace(activity.PlanText))
                 {
@@ -273,6 +279,29 @@ namespace OpenPomodoro
                 }
                 segment.ToolTip = $"{label}\n{activity.StartDate:HH:mm:ss} - {activity.EndDate:HH:mm:ss}";
                 System.Windows.Controls.Canvas.SetLeft(segment, (start - rangeStart).TotalSeconds / rangeSeconds * width);
+
+                if (addNoPauseSeparator)
+                {
+                    System.Windows.Shapes.Rectangle separator;
+                    if (segmentIndex < dayTimeline.Children.Count)
+                    {
+                        separator = (System.Windows.Shapes.Rectangle)dayTimeline.Children[segmentIndex];
+                    }
+                    else
+                    {
+                        separator = new System.Windows.Shapes.Rectangle();
+                        dayTimeline.Children.Add(separator);
+                    }
+                    segmentIndex++;
+                    separator.Width = 2;
+                    separator.Height = height;
+                    separator.Fill = Brushes.Black;
+                    separator.ToolTip = null;
+                    separator.IsHitTestVisible = false;
+                    System.Windows.Controls.Panel.SetZIndex(separator, 1);
+                    double separatorLeft = (start - rangeStart).TotalSeconds / rangeSeconds * width - separator.Width / 2;
+                    System.Windows.Controls.Canvas.SetLeft(separator, Math.Max(0, Math.Min(width - separator.Width, separatorLeft)));
+                }
             }
             while (dayTimeline.Children.Count > segmentIndex)
             {
@@ -465,7 +494,6 @@ namespace OpenPomodoro
                     ClearAlert();
                     mainBar.Value = 0;
                     menuStartWork.Visibility = Visibility.Visible;
-                    menuStartWithPlan.Visibility = Visibility.Visible;
                     break;
 
                 case WStates.WORKING:
@@ -481,7 +509,8 @@ namespace OpenPomodoro
                 case WStates.FINISHED_WORK:
                     Pomodoros.Remove(WORK_INPROGRESS);
                     Pomodoros.Add(WORK_COMPLETED);
-                    PomodoroDatabase.DBSingleton.getInstance().CompletePomodoro();
+                    Pomodoro completedPomodoro = DBSingleton.getInstance().CompletePomodoro();
+                    TryExportPlanList(completedPomodoro);
                     RefreshCompletedPomodoroCount();
                     foreach (var plansView in OwnedWindows.OfType<MyPlansView>())
                     {
@@ -531,7 +560,6 @@ namespace OpenPomodoro
                     menuStartShortPause.Visibility = Visibility.Visible;
                     menuStartLongPause.Visibility = Visibility.Visible;
                     menuStartWork.Visibility = Visibility.Visible;
-                    menuStartWithPlan.Visibility = Visibility.Visible;
 
                     StartStateTimer();
 
@@ -705,7 +733,7 @@ namespace OpenPomodoro
         {
             StartStateTimer();
 
-            int? secondsBetweenPomodoros = DBSingleton.getInstance().StartPomodoro(currentPlanId);
+            int? secondsBetweenPomodoros = DBSingleton.getInstance().StartPomodoro(currentPlanId.Value);
             if (secondsBetweenPomodoros.HasValue)
             {
                 int minutesBetweenPomodoros = (int)Math.Round(
@@ -760,7 +788,6 @@ namespace OpenPomodoro
         private void CleanMenu()
         {
             menuStartWork.Visibility = Visibility.Collapsed;
-            menuStartWithPlan.Visibility = Visibility.Collapsed;
             menuStartLongPause.Visibility = Visibility.Collapsed;
             menuStartShortPause.Visibility = Visibility.Collapsed;
             menuCancelProgres.Visibility = Visibility.Collapsed;
@@ -771,24 +798,7 @@ namespace OpenPomodoro
 
         private void menuStartWork_Click(object sender, RoutedEventArgs e)
         {
-            if (!string.IsNullOrWhiteSpace(currentPlan))
-            {
-                MessageBoxResult continuePlan = MessageBox.Show(
-                    this,
-                    $"Continue with this plan?\n\n{currentPlan}",
-                    "Start Pomodoro",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (continuePlan == MessageBoxResult.No)
-                {
-                    currentPlan = null;
-                    currentPlanId = null;
-                }
-            }
-
-            CenterText = currentPlan ?? string.Empty;
-            this.SetWindowState(WStates.WORKING);
+            MenuStartWithPlan_Click(sender, e);
         }
 
         private void MenuStartWithPlan_Click(object sender, RoutedEventArgs e)
@@ -892,7 +902,13 @@ namespace OpenPomodoro
 
         private void menuCancelProgress_Click(object sender, RoutedEventArgs e)
         {
+            bool canceledPomodoro = currentWindowState == WStates.WORKING;
             this.SetWindowState(WStates.STOP);
+
+            if (canceledPomodoro)
+            {
+                MenuStartWithPlan_Click(sender, e);
+            }
         }
 
         private void menuStartShortPause_Click(object sender, RoutedEventArgs e)
@@ -932,6 +948,45 @@ namespace OpenPomodoro
 
             this.Topmost = true;
             RefreshDayTimeline();
+        }
+
+        private void MenuOpenPlanFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                PlanListExporter.OpenCurrentDayFolder();
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(
+                    this,
+                    "Could not open the plan folder.\n\n" + exception.Message,
+                    "Open Plan Folder",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void TryExportPlanList(Pomodoro completedPomodoro)
+        {
+            if (completedPomodoro == null)
+            {
+                return;
+            }
+
+            try
+            {
+                PlanListExporter.ExportDay(completedPomodoro.StartDate);
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(
+                    this,
+                    "Could not update planlist.txt.\n\n" + exception.Message,
+                    "Plan list export",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
 
         private void MenuExit_Click(object sender, RoutedEventArgs e)

@@ -47,6 +47,11 @@ namespace OpenPomodoro
                 return;
             }
 
+            if (plan.Length > DBSingleton.MaxPlanLength)
+            {
+                plan = plan.Substring(0, DBSingleton.MaxPlanLength);
+            }
+
             PlanText = plan;
             PomodoroPlan selectedPlan = PlanInput.SelectedItem as PomodoroPlan;
             SelectedPlanId = selectedPlan != null && selectedPlan.Content == plan
